@@ -3,15 +3,15 @@ from __future__ import annotations
 from typing import TypedDict
 
 from app.models import (
+    AssumptionsDraft,
     CoreTruthDraft,
-    ForbiddenAssumptionsDraft,
-    KeyFactsDraft,
     Puzzle,
     PuzzleDraft,
     PuzzleReviewResult,
     QuestionJudgement,
     QuestionRecord,
     SolutionJudgement,
+    SolutionFactsDraft,
     SurfaceStoryDraft,
     TopicInterpretation,
     TruthDraft,
@@ -23,9 +23,9 @@ class PuzzleGraphState(TypedDict, total=False):
     topic_interpretation: TopicInterpretation
     core_truth: CoreTruthDraft
     truth_draft: TruthDraft
-    key_facts_draft: KeyFactsDraft
+    solution_facts_draft: SolutionFactsDraft
     surface_story_draft: SurfaceStoryDraft
-    forbidden_assumptions_draft: ForbiddenAssumptionsDraft
+    assumptions_draft: AssumptionsDraft
     review_result: PuzzleReviewResult
     revision_count: int
     last_failed_node: str

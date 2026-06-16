@@ -5,9 +5,9 @@ import json
 from app.config import PuzzleConfig, PuzzleGenerationConfig
 from app.models import (
     CoreTruthDraft,
-    KeyFactsDraft,
     Puzzle,
     QuestionRecord,
+    SolutionFactsDraft,
     SurfaceStoryDraft,
     TopicInterpretation,
     TruthDraft,
@@ -88,7 +88,10 @@ def generate_core_truth_system_prompt(config: PuzzleConfig) -> str:
             "",
             "硬性規則：",
             "- 只能有一個主要異常、一條核心因果鏈、最多兩個主要角色。",
-            "- 真相必須是普通生活誤會、時間差、視角誤判、物品被整理、標示被誤讀、或日常流程造成。",
+            "- 真相必須是普通生活誤會、時間差、視角誤判、物品被整理、標示被誤讀、或日常人物行動造成。",
+            "- 核心異常必須是人物行為或明確結果，不可只是商品擺放、補貨、打掃、盤點、陳列或單純看錯。",
+            "- 正解不得只是「其實是在正常補貨／打掃／盤點／例行檢查」這類最直覺日常流程。",
+            "- 真相必須包含具體關鍵物件或行動條件，讓玩家需要確認至少兩個面向才會接近正解。",
             "- 禁止大型陰謀、秘密組織、超自然、未知科技、複雜犯罪、醫療專業、法律專業。",
             "- 除非主題明確提到，禁止使用系統升級、模擬模式、自動警報、駭客、特殊機制。",
             "- 不可否定 topic_interpretation.hard_constraints 或 explicit_results。",
@@ -150,26 +153,37 @@ def expand_truth_user_prompt(
     return "\n".join(lines)
 
 
-def extract_key_facts_system_prompt(config: PuzzleConfig) -> str:
-    key_facts_max = min(config.key_facts_max, 5)
-    key_facts_min = min(config.key_facts_min, key_facts_max)
+def extract_solution_facts_system_prompt(config: PuzzleConfig) -> str:
     return "\n".join(
         [
-            "你是海龜湯關鍵事實抽取 agent。",
+            "你是海龜湯解答事實分層 agent。",
             f"所有欄位必須使用 {config.language}，用繁體中文。",
-            "你只能從 truth 中抽取關鍵事實，不得自由新增設定。",
+            "你只能從 core_truth 與 truth 中抽取事實，不得自由新增設定。",
             "",
             "抽取規則：",
-            f"- key_facts 必須有 {key_facts_min} 到 {key_facts_max} 條。",
-            "- 必須覆蓋真正原因、關鍵行動者、關鍵行動、造成的結果、表面誤導點。",
-            "- 每條都要是玩家可以透過是非問答逐步確認的客觀事實。",
-            "- 不要把單純氣氛或不可驗證的心理描寫列為 key fact。",
+            "- required_solution_facts 必須有 2 到 4 條，是玩家通關最低必要門檻。",
+            "- required_solution_facts 必須覆蓋真正原因、關鍵行動、造成的反常結果、表面誤導校正。",
+            "- supporting_facts 放可支撐問答與完整真相、但玩家提交解答時不必完整重述的背景。",
+            "- 不要把純背景、場景常識、過細觀察或可由其他事實推出的內容放入 required_solution_facts。",
+            "- 每個 id 必須短且穩定，例如 cause、action、result、misdirection。",
         ]
     )
 
 
-def extract_key_facts_user_prompt(truth: TruthDraft) -> str:
-    return "\n".join(["完整真相：", _json_dump(truth)])
+def extract_solution_facts_user_prompt(
+    core_truth: CoreTruthDraft,
+    truth: TruthDraft,
+    review_instruction: str | None = None,
+) -> str:
+    lines = [
+        "核心真相：",
+        _json_dump(core_truth),
+        "完整真相：",
+        _json_dump(truth),
+    ]
+    if review_instruction:
+        lines.extend(["上一輪 reviewer 修正要求：", review_instruction])
+    return "\n".join(lines)
 
 
 def write_surface_story_system_prompt(
@@ -197,7 +211,7 @@ def write_surface_story_user_prompt(
     topic: str,
     interpretation: TopicInterpretation,
     truth: TruthDraft,
-    key_facts: KeyFactsDraft,
+    solution_facts: SolutionFactsDraft,
     review_instruction: str | None = None,
 ) -> str:
     lines = [
@@ -206,40 +220,42 @@ def write_surface_story_user_prompt(
         _json_dump(interpretation),
         "完整真相：",
         _json_dump(truth),
-        "關鍵事實：",
-        _json_dump(key_facts),
+        "解答事實：",
+        _json_dump(solution_facts),
     ]
     if review_instruction:
         lines.extend(["上一輪 reviewer 修正要求：", review_instruction])
     return "\n".join(lines)
 
 
-def forbidden_assumptions_system_prompt(config: PuzzleConfig) -> str:
+def generate_assumptions_system_prompt(config: PuzzleConfig) -> str:
     return "\n".join(
         [
-            "你是海龜湯錯誤假設整理 agent。",
+            "你是海龜湯誤導與錯誤假設整理 agent。",
             f"所有欄位必須使用 {config.language}，用繁體中文。",
-            "請列出 2 到 3 條玩家容易猜錯、且客觀上不成立的假設。",
+            "請分別列出題目設計用的 misleading_assumptions，以及問答判定用的 forbidden_assumptions。",
             "",
             "規則：",
-            "- 只能根據 truth、key_facts、surface_story 產生。",
+            "- misleading_assumptions 是玩家容易被謎面引導去猜的方向，2 到 3 條。",
+            "- forbidden_assumptions 是客觀上不成立、問答時應否定的假設，2 到 3 條。",
+            "- 只能根據 truth、solution_facts、surface_story 產生。",
             "- 不可否定玩家主題指定的事實或謎面客觀事實。",
-            "- 每條都要短，適合後續問答時避免誤判。",
+            "- 每條都要短，不能寫成提示或解答。",
         ]
     )
 
 
-def forbidden_assumptions_user_prompt(
+def generate_assumptions_user_prompt(
     truth: TruthDraft,
-    key_facts: KeyFactsDraft,
+    solution_facts: SolutionFactsDraft,
     surface_story: SurfaceStoryDraft,
 ) -> str:
     return "\n".join(
         [
             "完整真相：",
             _json_dump(truth),
-            "關鍵事實：",
-            _json_dump(key_facts),
+            "解答事實：",
+            _json_dump(solution_facts),
             "謎面：",
             _json_dump(surface_story),
         ]
@@ -255,18 +271,21 @@ def review_puzzle_system_prompt(config: PuzzleConfig) -> str:
             "",
             "審核重點：",
             "- 謎面客觀事實不可被 truth 否定。",
-            "- surface_story 的每個異常都必須能在 truth 和 key_facts 找到直接解釋。",
+            "- surface_story 的每個異常都必須能在 truth 和 required_solution_facts/supporting_facts 找到直接解釋。",
             "- 只能有一個主要異常與一條核心因果鏈。",
-            "- key_facts 必須完整覆蓋真正原因、行動者、行動、結果、誤導點。",
+            "- required_solution_facts 必須只放通關最低必要事實；supporting_facts 不可被當成硬性通關門檻。",
+            "- 低可玩性題目必須打回：正常補貨、正常打掃、盤點、陳列、例行檢查、只是看錯或單純誤會。",
+            "- 核心異常必須是人物行為或明確結果，不能只是物品擺放或場景狀態。",
+            "- 正解必須包含具體關鍵物件或行動條件，玩家需要確認至少兩個面向才會自然接近正解。",
             "- 題目要能靠是／否／無關問答逐步解開，不依賴冷僻專業知識。",
             "- 必須保留玩家主題中的明確元素。",
             "",
             "target_node 選擇：",
             "- 核心因果本身不合理或過度發散：generate_core_truth。",
             "- truth 加入第二主線、過長、或和 core_truth 不一致：expand_truth。",
-            "- key_facts 遺漏或新增 truth 沒有的設定：extract_key_facts。",
+            "- required_solution_facts/supporting_facts 分層錯誤、遺漏或新增 truth 沒有的設定：extract_solution_facts。",
             "- 謎面有客觀事實錯誤、多個異常、或暴露原因：write_surface_story。",
-            "- forbidden_assumptions 否定主題或謎面事實：generate_forbidden_assumptions。",
+            "- misleading_assumptions/forbidden_assumptions 否定主題或謎面事實：generate_assumptions。",
             "- 若完全通過，passed=true 且 target_node=finalize_puzzle。",
         ]
     )
@@ -277,9 +296,9 @@ def review_puzzle_user_prompt(
     interpretation: TopicInterpretation,
     core_truth: CoreTruthDraft,
     truth: TruthDraft,
-    key_facts: KeyFactsDraft,
+    solution_facts: SolutionFactsDraft,
     surface_story: SurfaceStoryDraft,
-    forbidden_assumptions: list[str],
+    assumptions: object,
 ) -> str:
     return "\n".join(
         [
@@ -290,12 +309,12 @@ def review_puzzle_user_prompt(
             _json_dump(core_truth),
             "完整真相：",
             _json_dump(truth),
-            "關鍵事實：",
-            _json_dump(key_facts),
+            "解答事實：",
+            _json_dump(solution_facts),
             "謎面：",
             _json_dump(surface_story),
-            "錯誤假設：",
-            json.dumps(forbidden_assumptions, ensure_ascii=False),
+            "誤導與錯誤假設：",
+            _json_dump(assumptions),
         ]
     )
 
@@ -356,18 +375,20 @@ def judge_solution_system_prompt() -> str:
             "只回傳 solved 布林值，不提供提示或解釋。",
             "",
             "solved=true 必須同時滿足：",
-            "- 玩家說出造成謎面異常的真正原因。",
-            "- 玩家說出關鍵行動者做了什麼。",
-            "- 玩家說出該行動如何導致謎面中的反常結果。",
-            "- 玩家說法沒有和 truth 或 key_facts 的核心事實衝突。",
+            "- 玩家提交內容本身命中所有 required_solution_facts；或主要內容命中，缺少部分已在既有問答中被明確確認。",
+            "- 玩家說法沒有和 truth、required_solution_facts 或 forbidden_assumptions 衝突。",
+            "- 玩家必須說出造成謎面異常的真正原因。",
+            "- 玩家必須說出關鍵行動者做了什麼。",
+            "- 玩家答案已能說明真正原因、關鍵行動、造成的反常結果與表面誤導校正。",
             "",
             "solved=false 的情況：",
             "- 只猜到不是偷竊、不是超自然、只是誤會等排除性答案。",
             "- 只猜到物品大概位置或角色大概關係，但缺少造成異常的關鍵行動。",
-            "- 缺少 key_facts 中任一個必要因果環節。",
+            "- 只說出 supporting_facts，沒有命中 required_solution_facts。",
             "- 使用錯誤原因解釋，即使部分細節命中。",
             "",
-            "判定時以 key_facts 為最低必要門檻；玩家不必逐字相同，但必須完整覆蓋核心因果鏈。",
+            "判定時以 required_solution_facts 為最低必要門檻；supporting_facts 只輔助理解，不是硬性通關條件。",
+            "請回傳 matched_required_fact_ids、matched_from_history_fact_ids、conflicting_assumptions 與 internal_reason，這些只供內部 log 使用。",
         ]
     )
 
@@ -384,8 +405,12 @@ def judge_solution_user_prompt(
         [
             f"謎面：{puzzle.surface_story}",
             f"完整真相：{puzzle.truth}",
-            "關鍵事實：",
-            *[f"- {fact}" for fact in puzzle.key_facts],
+            "必要解答事實：",
+            *_required_solution_fact_lines(puzzle),
+            "支撐事實：",
+            *[f"- {fact.id}: {fact.fact}" for fact in puzzle.supporting_facts],
+            "不成立假設：",
+            *[f"- {item}" for item in puzzle.forbidden_assumptions],
             "既有問答：",
             previous or "（尚無）",
             f"玩家解答：{solution}",
@@ -397,3 +422,12 @@ def _json_dump(value: object) -> str:
     if hasattr(value, "model_dump"):
         return json.dumps(value.model_dump(mode="json"), ensure_ascii=False, indent=2)
     return json.dumps(value, ensure_ascii=False, indent=2)
+
+
+def _required_solution_fact_lines(puzzle: Puzzle) -> list[str]:
+    if puzzle.required_solution_facts:
+        return [
+            f"- {fact.id} ({fact.role}): {fact.fact}"
+            for fact in puzzle.required_solution_facts
+        ]
+    return [f"- legacy: {fact}" for fact in puzzle.key_facts]

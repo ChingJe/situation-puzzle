@@ -132,6 +132,44 @@ def test_deterministic_gate_rewrites_empty_key_facts() -> None:
     assert len(draft.key_facts) == 5
 
 
+def test_deterministic_gate_rewrites_trivial_daily_workflow_core_truth() -> None:
+    workflow = SituationPuzzleWorkflow(
+        FakeLlmClient(
+            core_truths=[
+                CoreTruthDraft(
+                    core_truth="店員只是在正常補貨，顧客誤以為他偷竊。",
+                    cause="正常補貨",
+                    actor_action="店員補貨",
+                    abnormal_result="顧客誤會店員偷竊",
+                    misdirection="玩家以為店員偷東西",
+                ),
+                FakeLlmClient.default_core_truth(),
+            ],
+            review_results=[
+                PuzzleReviewResult(passed=True, target_node="finalize_puzzle")
+            ],
+        )
+    )
+
+    draft = workflow.generate_puzzle("便利商店")
+
+    assert "正常補貨" not in draft.core_truth
+    assert draft.schema_version == 2
+
+
+def test_finalize_outputs_solution_facts_and_legacy_key_facts() -> None:
+    workflow = SituationPuzzleWorkflow(FakeLlmClient())
+
+    draft = workflow.generate_puzzle("雨夜便利商店")
+
+    assert draft.required_solution_facts
+    assert draft.supporting_facts
+    assert draft.key_facts == [
+        *[fact.fact for fact in draft.required_solution_facts],
+        *[fact.fact for fact in draft.supporting_facts],
+    ]
+
+
 def test_revision_limit_returns_llm_output_invalid() -> None:
     settings = Settings(
         puzzle_generation={

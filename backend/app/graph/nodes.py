@@ -8,7 +8,7 @@ from app.config import Settings
 from app.errors import ApiErrorCode, AppError
 from app.llm.client import LlmClient
 from app.graph.state import PuzzleGraphState, QuestionGraphState, SolutionGraphState
-from app.models import Difficulty, PuzzleDraft, PuzzleReviewResult
+from app.models import Difficulty, PuzzleDraft, PuzzleQualityNotes, PuzzleReviewResult
 from app.observability import log_event
 
 
@@ -61,12 +61,18 @@ def expand_truth_node(llm: LlmClient):
     return node
 
 
-def extract_key_facts_node(llm: LlmClient):
+def extract_solution_facts_node(llm: LlmClient):
     def node(state: PuzzleGraphState) -> PuzzleGraphState:
         return _run_node(
-            "extract_key_facts",
+            "extract_solution_facts",
             state,
-            lambda: {"key_facts_draft": llm.extract_key_facts(state["truth_draft"])},
+            lambda: {
+                "solution_facts_draft": llm.extract_solution_facts(
+                    state["core_truth"],
+                    state["truth_draft"],
+                    _review_instruction_for(state, "extract_solution_facts"),
+                )
+            },
         )
 
     return node
@@ -82,7 +88,7 @@ def write_surface_story_node(llm: LlmClient):
                     state["topic"],
                     state["topic_interpretation"],
                     state["truth_draft"],
-                    state["key_facts_draft"],
+                    state["solution_facts_draft"],
                     _review_instruction_for(state, "write_surface_story"),
                 )
             },
@@ -91,15 +97,15 @@ def write_surface_story_node(llm: LlmClient):
     return node
 
 
-def generate_forbidden_assumptions_node(llm: LlmClient):
+def generate_assumptions_node(llm: LlmClient):
     def node(state: PuzzleGraphState) -> PuzzleGraphState:
         return _run_node(
-            "generate_forbidden_assumptions",
+            "generate_assumptions",
             state,
             lambda: {
-                "forbidden_assumptions_draft": llm.generate_forbidden_assumptions(
+                "assumptions_draft": llm.generate_assumptions(
                     state["truth_draft"],
-                    state["key_facts_draft"],
+                    state["solution_facts_draft"],
                     state["surface_story_draft"],
                 )
             },
@@ -137,13 +143,26 @@ def finalize_puzzle_node():
             state,
             lambda: {
                 "puzzle_draft": PuzzleDraft(
+                    schema_version=2,
                     title=state["topic_interpretation"].title,
                     surface_story=state["surface_story_draft"].surface_story,
                     truth=state["truth_draft"].truth,
-                    key_facts=state["key_facts_draft"].key_facts,
-                    forbidden_assumptions=state[
-                        "forbidden_assumptions_draft"
-                    ].forbidden_assumptions,
+                    key_facts=state["solution_facts_draft"].key_facts,
+                    core_mystery=state["core_truth"].abnormal_result,
+                    core_truth=state["core_truth"].core_truth,
+                    required_solution_facts=state[
+                        "solution_facts_draft"
+                    ].required_solution_facts,
+                    supporting_facts=state["solution_facts_draft"].supporting_facts,
+                    misleading_assumptions=state[
+                        "assumptions_draft"
+                    ].misleading_assumptions,
+                    forbidden_assumptions=state["assumptions_draft"].forbidden_assumptions,
+                    quality_notes=PuzzleQualityNotes(
+                        abnormal_result=state["core_truth"].abnormal_result,
+                        misdirection=state["core_truth"].misdirection,
+                        answer_shape="玩家應說明真正原因、關鍵行動、造成的反常結果與表面誤導。",
+                    ),
                     difficulty=Difficulty.MEDIUM,
                 )
             },
@@ -251,9 +270,9 @@ def _review_puzzle(
         state["topic_interpretation"],
         state["core_truth"],
         state["truth_draft"],
-        state["key_facts_draft"],
+        state["solution_facts_draft"],
         state["surface_story_draft"],
-        state["forbidden_assumptions_draft"].forbidden_assumptions,
+        state["assumptions_draft"],
     )
     return {"review_result": review}
 
@@ -291,12 +310,30 @@ def _run_deterministic_gate(
     target_node = "finalize_puzzle"
     surface_story = state["surface_story_draft"].surface_story.strip()
     truth = state["truth_draft"].truth.strip()
-    key_facts = [fact.strip() for fact in state["key_facts_draft"].key_facts if fact.strip()]
+    solution_facts = state["solution_facts_draft"]
+    required_facts = [
+        fact.fact.strip()
+        for fact in solution_facts.required_solution_facts
+        if fact.fact.strip()
+    ]
+    supporting_facts = [
+        fact.fact.strip() for fact in solution_facts.supporting_facts if fact.fact.strip()
+    ]
     forbidden = [
         item.strip()
-        for item in state["forbidden_assumptions_draft"].forbidden_assumptions
+        for item in state["assumptions_draft"].forbidden_assumptions
         if item.strip()
     ]
+    low_playability_terms = (
+        "正常補貨",
+        "正常打掃",
+        "正常清潔",
+        "正常盤點",
+        "例行盤點",
+        "例行檢查",
+        "只是看錯",
+        "只是誤會",
+    )
 
     if len(surface_story) > settings.puzzle_generation.strict_surface_story_max_chars:
         issues.append("謎面超過字數上限")
@@ -321,19 +358,23 @@ def _run_deterministic_gate(
         issues.append("真相超過字數上限")
         target_node = _prefer_earlier_target(target_node, "expand_truth")
 
-    if not (
-        settings.puzzle.key_facts_min
-        <= len(key_facts)
-        <= min(settings.puzzle.key_facts_max, 5)
-    ):
-        issues.append("關鍵事實條數不符合設定")
-        target_node = _prefer_earlier_target(target_node, "extract_key_facts")
+    if any(term in state["core_truth"].core_truth for term in low_playability_terms):
+        issues.append("核心真相疑似只是直覺日常流程或單純誤會")
+        target_node = _prefer_earlier_target(target_node, "generate_core_truth")
+
+    if not 2 <= len(required_facts) <= 4:
+        issues.append("必要解答事實條數不符合設定")
+        target_node = _prefer_earlier_target(target_node, "extract_solution_facts")
+
+    if not required_facts or len(required_facts) + len(supporting_facts) < 3:
+        issues.append("解答事實不足以支撐問答與通關判定")
+        target_node = _prefer_earlier_target(target_node, "extract_solution_facts")
 
     if not 2 <= len(forbidden) <= 3:
         issues.append("錯誤假設條數不符合設定")
         target_node = _prefer_earlier_target(
             target_node,
-            "generate_forbidden_assumptions",
+            "generate_assumptions",
         )
 
     if not issues:
@@ -352,8 +393,10 @@ def _prefer_earlier_target(current: str, candidate: str) -> str:
         "generate_core_truth": 0,
         "expand_truth": 1,
         "extract_key_facts": 2,
+        "extract_solution_facts": 2,
         "write_surface_story": 3,
         "generate_forbidden_assumptions": 4,
+        "generate_assumptions": 4,
         "finalize_puzzle": 5,
     }
     return candidate if order[candidate] < order[current] else current
@@ -365,7 +408,17 @@ def _sentence_count(text: str) -> int:
 
 def _review_instruction_for(state: PuzzleGraphState, target_node: str) -> str | None:
     review = state.get("review_result")
-    if not review or review.passed or review.target_node != target_node:
+    if not review or review.passed:
+        return None
+    aliases = {
+        "extract_solution_facts": {"extract_solution_facts", "extract_key_facts"},
+        "generate_assumptions": {
+            "generate_assumptions",
+            "generate_forbidden_assumptions",
+        },
+    }
+    valid_targets = aliases.get(target_node, {target_node})
+    if review.target_node not in valid_targets:
         return None
     return review.revision_instruction or "請依 reviewer issues 修正。"
 

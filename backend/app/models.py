@@ -41,11 +41,18 @@ class ApiModel(BaseModel):
 
 
 class PuzzleDraft(ApiModel):
+    schema_version: int = 1
     title: str = Field(min_length=1, max_length=80)
     surface_story: str = Field(min_length=1)
     truth: str = Field(min_length=1)
     key_facts: list[str] = Field(min_length=1)
+    core_mystery: str = ""
+    core_truth: str = ""
+    required_solution_facts: list[RequiredSolutionFact] = Field(default_factory=list)
+    supporting_facts: list[SupportingFact] = Field(default_factory=list)
+    misleading_assumptions: list[str] = Field(default_factory=list)
     forbidden_assumptions: list[str] = Field(default_factory=list)
+    quality_notes: PuzzleQualityNotes = Field(default_factory=lambda: PuzzleQualityNotes())
     difficulty: Difficulty = Difficulty.MEDIUM
 
 
@@ -67,6 +74,35 @@ class CoreTruthDraft(ApiModel):
     misdirection: str = Field(min_length=1, max_length=120)
 
 
+class RequiredSolutionFact(ApiModel):
+    id: str = Field(min_length=1, max_length=40)
+    fact: str = Field(min_length=1, max_length=180)
+    role: Literal["cause", "actor", "action", "result", "misdirection", "other"] = "other"
+
+
+class SupportingFact(ApiModel):
+    id: str = Field(min_length=1, max_length=40)
+    fact: str = Field(min_length=1, max_length=180)
+
+
+class SolutionFactsDraft(ApiModel):
+    required_solution_facts: list[RequiredSolutionFact] = Field(default_factory=list)
+    supporting_facts: list[SupportingFact] = Field(default_factory=list)
+
+    @property
+    def key_facts(self) -> list[str]:
+        return [
+            *[item.fact for item in self.required_solution_facts],
+            *[item.fact for item in self.supporting_facts],
+        ]
+
+
+class PuzzleQualityNotes(ApiModel):
+    abnormal_result: str = ""
+    misdirection: str = ""
+    answer_shape: str = ""
+
+
 class TruthDraft(ApiModel):
     truth: str = Field(min_length=1)
 
@@ -79,7 +115,8 @@ class SurfaceStoryDraft(ApiModel):
     surface_story: str = Field(min_length=1)
 
 
-class ForbiddenAssumptionsDraft(ApiModel):
+class AssumptionsDraft(ApiModel):
+    misleading_assumptions: list[str] = Field(default_factory=list)
     forbidden_assumptions: list[str] = Field(default_factory=list)
 
 
@@ -90,8 +127,10 @@ class PuzzleReviewResult(ApiModel):
         "generate_core_truth",
         "expand_truth",
         "extract_key_facts",
+        "extract_solution_facts",
         "write_surface_story",
         "generate_forbidden_assumptions",
+        "generate_assumptions",
         "finalize_puzzle",
     ] = "finalize_puzzle"
     issues: list[str] = Field(default_factory=list)
@@ -105,14 +144,25 @@ class QuestionJudgement(ApiModel):
 
 class SolutionJudgement(ApiModel):
     solved: bool
+    matched_required_fact_ids: list[str] = Field(default_factory=list)
+    matched_from_history_fact_ids: list[str] = Field(default_factory=list)
+    conflicting_assumptions: list[str] = Field(default_factory=list)
+    internal_reason: str = ""
 
 
 class Puzzle(ApiModel):
+    schema_version: int = 1
     title: str
     surface_story: str
     truth: str
     key_facts: list[str]
+    core_mystery: str = ""
+    core_truth: str = ""
+    required_solution_facts: list[RequiredSolutionFact] = Field(default_factory=list)
+    supporting_facts: list[SupportingFact] = Field(default_factory=list)
+    misleading_assumptions: list[str] = Field(default_factory=list)
     forbidden_assumptions: list[str]
+    quality_notes: PuzzleQualityNotes = Field(default_factory=lambda: PuzzleQualityNotes())
     difficulty: Difficulty
 
     @classmethod
@@ -158,7 +208,14 @@ class GameSession(ApiModel):
             surface_story=self.puzzle.surface_story,
             truth=self.puzzle.truth,
             key_facts=self.puzzle.key_facts,
+            schema_version=self.puzzle.schema_version,
+            core_mystery=self.puzzle.core_mystery,
+            core_truth=self.puzzle.core_truth,
+            required_solution_facts=self.puzzle.required_solution_facts,
+            supporting_facts=self.puzzle.supporting_facts,
+            misleading_assumptions=self.puzzle.misleading_assumptions,
             forbidden_assumptions=self.puzzle.forbidden_assumptions,
+            quality_notes=self.puzzle.quality_notes,
             difficulty=self.puzzle.difficulty,
             questions=self.questions,
             solution_attempts=self.solution_attempts,
@@ -171,11 +228,18 @@ class GameSession(ApiModel):
 class CompletedGameRecord(ApiModel):
     game_id: str
     topic: str
+    schema_version: int = 1
     title: str
     surface_story: str
     truth: str
     key_facts: list[str]
+    core_mystery: str = ""
+    core_truth: str = ""
+    required_solution_facts: list[RequiredSolutionFact] = Field(default_factory=list)
+    supporting_facts: list[SupportingFact] = Field(default_factory=list)
+    misleading_assumptions: list[str] = Field(default_factory=list)
     forbidden_assumptions: list[str]
+    quality_notes: PuzzleQualityNotes = Field(default_factory=lambda: PuzzleQualityNotes())
     difficulty: Difficulty
     questions: list[QuestionRecord]
     solution_attempts: list[SolutionAttempt]

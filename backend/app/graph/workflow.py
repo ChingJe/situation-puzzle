@@ -9,10 +9,10 @@ from app.config import Settings, get_settings
 from app.graph.nodes import (
     answer_question_node,
     expand_truth_node,
-    extract_key_facts_node,
+    extract_solution_facts_node,
     finalize_puzzle_node,
     generate_core_truth_node,
-    generate_forbidden_assumptions_node,
+    generate_assumptions_node,
     interpret_topic_node,
     judge_solution_node,
     review_puzzle_node,
@@ -43,22 +43,19 @@ class SituationPuzzleWorkflow:
         graph.add_node("interpret_topic", interpret_topic_node(self.llm))
         graph.add_node("generate_core_truth", generate_core_truth_node(self.llm))
         graph.add_node("expand_truth", expand_truth_node(self.llm))
-        graph.add_node("extract_key_facts", extract_key_facts_node(self.llm))
+        graph.add_node("extract_solution_facts", extract_solution_facts_node(self.llm))
         graph.add_node("write_surface_story", write_surface_story_node(self.llm))
-        graph.add_node(
-            "generate_forbidden_assumptions",
-            generate_forbidden_assumptions_node(self.llm),
-        )
+        graph.add_node("generate_assumptions", generate_assumptions_node(self.llm))
         graph.add_node("review_puzzle", review_puzzle_node(self.llm, self.settings))
         graph.add_node("route_revision", route_revision_node(self.settings))
         graph.add_node("finalize_puzzle", finalize_puzzle_node())
         graph.add_edge(START, "interpret_topic")
         graph.add_edge("interpret_topic", "generate_core_truth")
         graph.add_edge("generate_core_truth", "expand_truth")
-        graph.add_edge("expand_truth", "extract_key_facts")
-        graph.add_edge("extract_key_facts", "write_surface_story")
-        graph.add_edge("write_surface_story", "generate_forbidden_assumptions")
-        graph.add_edge("generate_forbidden_assumptions", "review_puzzle")
+        graph.add_edge("expand_truth", "extract_solution_facts")
+        graph.add_edge("extract_solution_facts", "write_surface_story")
+        graph.add_edge("write_surface_story", "generate_assumptions")
+        graph.add_edge("generate_assumptions", "review_puzzle")
         graph.add_conditional_edges(
             "review_puzzle",
             should_finalize_or_revise,
@@ -73,9 +70,11 @@ class SituationPuzzleWorkflow:
             {
                 "generate_core_truth": "generate_core_truth",
                 "expand_truth": "expand_truth",
-                "extract_key_facts": "extract_key_facts",
+                "extract_key_facts": "extract_solution_facts",
+                "extract_solution_facts": "extract_solution_facts",
                 "write_surface_story": "write_surface_story",
-                "generate_forbidden_assumptions": "generate_forbidden_assumptions",
+                "generate_forbidden_assumptions": "generate_assumptions",
+                "generate_assumptions": "generate_assumptions",
             },
         )
         graph.add_edge("finalize_puzzle", END)

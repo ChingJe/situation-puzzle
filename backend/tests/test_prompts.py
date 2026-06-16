@@ -52,7 +52,8 @@ def test_judge_solution_prompt_requires_core_causality() -> None:
     assert "造成謎面異常的真正原因" in prompt
     assert "關鍵行動者做了什麼" in prompt
     assert "只猜到不是偷竊、不是超自然、只是誤會" in prompt
-    assert "key_facts 為最低必要門檻" in prompt
+    assert "required_solution_facts 為最低必要門檻" in prompt
+    assert "supporting_facts 只輔助理解" in prompt
 
 
 def test_judge_solution_user_prompt_contains_solution_context() -> None:

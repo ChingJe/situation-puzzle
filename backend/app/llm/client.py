@@ -22,10 +22,10 @@ from app.llm.prompts import (
     answer_question_user_prompt,
     expand_truth_system_prompt,
     expand_truth_user_prompt,
-    extract_key_facts_system_prompt,
-    extract_key_facts_user_prompt,
-    forbidden_assumptions_system_prompt,
-    forbidden_assumptions_user_prompt,
+    extract_solution_facts_system_prompt,
+    extract_solution_facts_user_prompt,
+    generate_assumptions_system_prompt,
+    generate_assumptions_user_prompt,
     generate_core_truth_system_prompt,
     generate_core_truth_user_prompt,
     interpret_topic_system_prompt,
@@ -40,8 +40,8 @@ from app.llm.prompts import (
     write_surface_story_user_prompt,
 )
 from app.models import (
+    AssumptionsDraft,
     CoreTruthDraft,
-    ForbiddenAssumptionsDraft,
     KeyFactsDraft,
     Puzzle,
     PuzzleDraft,
@@ -49,6 +49,7 @@ from app.models import (
     QuestionJudgement,
     QuestionRecord,
     SolutionJudgement,
+    SolutionFactsDraft,
     SurfaceStoryDraft,
     TopicInterpretation,
     TruthDraft,
@@ -78,23 +79,28 @@ class LlmClient(Protocol):
         review_instruction: str | None = None,
     ) -> TruthDraft: ...
 
-    def extract_key_facts(self, truth: TruthDraft) -> KeyFactsDraft: ...
+    def extract_solution_facts(
+        self,
+        core_truth: CoreTruthDraft,
+        truth: TruthDraft,
+        review_instruction: str | None = None,
+    ) -> SolutionFactsDraft: ...
 
     def write_surface_story(
         self,
         topic: str,
         interpretation: TopicInterpretation,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         review_instruction: str | None = None,
     ) -> SurfaceStoryDraft: ...
 
-    def generate_forbidden_assumptions(
+    def generate_assumptions(
         self,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         surface_story: SurfaceStoryDraft,
-    ) -> ForbiddenAssumptionsDraft: ...
+    ) -> AssumptionsDraft: ...
 
     def review_puzzle(
         self,
@@ -102,9 +108,9 @@ class LlmClient(Protocol):
         interpretation: TopicInterpretation,
         core_truth: CoreTruthDraft,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         surface_story: SurfaceStoryDraft,
-        forbidden_assumptions: list[str],
+        assumptions: AssumptionsDraft,
     ) -> PuzzleReviewResult: ...
 
     def answer_question(
@@ -343,13 +349,26 @@ class OllamaLlmClient:
             self.settings.llm.generation_temperature,
         )
 
-    def extract_key_facts(self, truth: TruthDraft) -> KeyFactsDraft:
+    def extract_solution_facts(
+        self,
+        core_truth: CoreTruthDraft,
+        truth: TruthDraft,
+        review_instruction: str | None = None,
+    ) -> SolutionFactsDraft:
         return self._invoke_structured(
-            "extract_key_facts",
-            KeyFactsDraft,
+            "extract_solution_facts",
+            SolutionFactsDraft,
             [
-                SystemMessage(content=extract_key_facts_system_prompt(self.settings.puzzle)),
-                HumanMessage(content=extract_key_facts_user_prompt(truth)),
+                SystemMessage(
+                    content=extract_solution_facts_system_prompt(self.settings.puzzle)
+                ),
+                HumanMessage(
+                    content=extract_solution_facts_user_prompt(
+                        core_truth,
+                        truth,
+                        review_instruction,
+                    )
+                ),
             ],
             self.settings.llm.generation_temperature,
         )
@@ -359,7 +378,7 @@ class OllamaLlmClient:
         topic: str,
         interpretation: TopicInterpretation,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         review_instruction: str | None = None,
     ) -> SurfaceStoryDraft:
         return self._invoke_structured(
@@ -377,7 +396,7 @@ class OllamaLlmClient:
                         topic,
                         interpretation,
                         truth,
-                        key_facts,
+                        solution_facts,
                         review_instruction,
                     )
                 ),
@@ -385,21 +404,21 @@ class OllamaLlmClient:
             self.settings.llm.generation_temperature,
         )
 
-    def generate_forbidden_assumptions(
+    def generate_assumptions(
         self,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         surface_story: SurfaceStoryDraft,
-    ) -> ForbiddenAssumptionsDraft:
+    ) -> AssumptionsDraft:
         return self._invoke_structured(
-            "generate_forbidden_assumptions",
-            ForbiddenAssumptionsDraft,
+            "generate_assumptions",
+            AssumptionsDraft,
             [
-                SystemMessage(content=forbidden_assumptions_system_prompt(self.settings.puzzle)),
+                SystemMessage(content=generate_assumptions_system_prompt(self.settings.puzzle)),
                 HumanMessage(
-                    content=forbidden_assumptions_user_prompt(
+                    content=generate_assumptions_user_prompt(
                         truth,
-                        key_facts,
+                        solution_facts,
                         surface_story,
                     )
                 ),
@@ -413,9 +432,9 @@ class OllamaLlmClient:
         interpretation: TopicInterpretation,
         core_truth: CoreTruthDraft,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         surface_story: SurfaceStoryDraft,
-        forbidden_assumptions: list[str],
+        assumptions: AssumptionsDraft,
     ) -> PuzzleReviewResult:
         return self._invoke_structured(
             "review_puzzle",
@@ -428,9 +447,9 @@ class OllamaLlmClient:
                         interpretation,
                         core_truth,
                         truth,
-                        key_facts,
+                        solution_facts,
                         surface_story,
-                        forbidden_assumptions,
+                        assumptions,
                     )
                 ),
             ],
@@ -784,12 +803,11 @@ class FakeLlmClient:
         topic_interpretations: Sequence[TopicInterpretation | Exception] | None = None,
         core_truths: Sequence[CoreTruthDraft | Exception] | None = None,
         truth_drafts: Sequence[TruthDraft | Exception] | None = None,
+        solution_facts_drafts: Sequence[SolutionFactsDraft | Exception] | None = None,
         key_facts_drafts: Sequence[KeyFactsDraft | Exception] | None = None,
         surface_story_drafts: Sequence[SurfaceStoryDraft | Exception] | None = None,
-        forbidden_assumptions_drafts: Sequence[
-            ForbiddenAssumptionsDraft | Exception
-        ]
-        | None = None,
+        assumptions_drafts: Sequence[AssumptionsDraft | Exception] | None = None,
+        forbidden_assumptions_drafts: Sequence[AssumptionsDraft | Exception] | None = None,
         review_results: Sequence[PuzzleReviewResult | Exception] | None = None,
         question_judgements: Sequence[QuestionJudgement | Exception] | None = None,
         solution_judgements: Sequence[SolutionJudgement | Exception] | None = None,
@@ -800,12 +818,18 @@ class FakeLlmClient:
         )
         self.core_truths = list(core_truths or [self.default_core_truth()])
         self.truth_drafts = list(truth_drafts or [self.default_truth_draft()])
-        self.key_facts_drafts = list(key_facts_drafts or [self.default_key_facts()])
+        self.solution_facts_drafts = list(
+            solution_facts_drafts
+            or _solution_facts_from_legacy_drafts(key_facts_drafts)
+            or [self.default_solution_facts()]
+        )
         self.surface_story_drafts = list(
             surface_story_drafts or [self.default_surface_story()]
         )
-        self.forbidden_assumptions_drafts = list(
-            forbidden_assumptions_drafts or [self.default_forbidden_assumptions()]
+        self.assumptions_drafts = list(
+            assumptions_drafts
+            or forbidden_assumptions_drafts
+            or [self.default_assumptions()]
         )
         self.review_results = list(review_results or [self.default_review_result()])
         self.question_judgements = list(
@@ -823,6 +847,12 @@ class FakeLlmClient:
             surface_story="雨夜裡，男子撿到一張沒有人認領的發票。隔天，他取消了婚禮。",
             truth="男子原本準備結婚，卻在便利商店發票上看到熟悉的統一編號與品項。那張發票來自未婚妻聲稱早已倒閉的工作室，時間卻是當晚。男子追查後發現未婚妻一直用假身分協助另一人逃避債務，婚禮只是取得財產控制權的安排。他沒有死亡，而是取消婚禮並報警。",
             key_facts=["男子沒有死亡", "發票暴露時間矛盾", "未婚妻隱瞞身分與工作室", "婚禮涉及財產目的"],
+            schema_version=2,
+            core_mystery="男子為何因一張發票取消婚禮。",
+            core_truth="男子在發票時間與品項中發現未婚妻隱瞞行蹤，因此取消婚禮。",
+            required_solution_facts=FakeLlmClient.default_solution_facts().required_solution_facts,
+            supporting_facts=FakeLlmClient.default_solution_facts().supporting_facts,
+            misleading_assumptions=["男子遇害", "發票中獎"],
             forbidden_assumptions=["男子必然遇害", "發票是中獎發票"],
             difficulty="medium",
         )
@@ -874,16 +904,58 @@ class FakeLlmClient:
         )
 
     @staticmethod
+    def default_solution_facts() -> SolutionFactsDraft:
+        return SolutionFactsDraft(
+            required_solution_facts=[
+                {
+                    "id": "cause",
+                    "role": "cause",
+                    "fact": "發票上的時間與品項暴露未婚妻行蹤矛盾",
+                },
+                {
+                    "id": "action",
+                    "role": "action",
+                    "fact": "男子比對發票與未婚妻先前說法",
+                },
+                {
+                    "id": "result",
+                    "role": "result",
+                    "fact": "男子因此取消婚禮",
+                },
+                {
+                    "id": "misdirection",
+                    "role": "misdirection",
+                    "fact": "發票不是因為中獎或死亡事件才重要",
+                },
+            ],
+            supporting_facts=[
+                {
+                    "id": "alive",
+                    "fact": "男子沒有死亡",
+                },
+                {
+                    "id": "workshop",
+                    "fact": "發票品項和未婚妻隱瞞的工作室有關",
+                },
+            ],
+        )
+
+    @staticmethod
     def default_surface_story() -> SurfaceStoryDraft:
         return SurfaceStoryDraft(
             surface_story="雨夜裡，男子撿到一張沒有人認領的發票。隔天，他取消了婚禮。"
         )
 
     @staticmethod
-    def default_forbidden_assumptions() -> ForbiddenAssumptionsDraft:
-        return ForbiddenAssumptionsDraft(
+    def default_assumptions() -> AssumptionsDraft:
+        return AssumptionsDraft(
+            misleading_assumptions=["男子遇害", "發票中獎"],
             forbidden_assumptions=["男子必然遇害", "發票是中獎發票"]
         )
+
+    @staticmethod
+    def default_forbidden_assumptions() -> AssumptionsDraft:
+        return FakeLlmClient.default_assumptions()
 
     @staticmethod
     def default_review_result() -> PuzzleReviewResult:
@@ -926,33 +998,42 @@ class FakeLlmClient:
         log_event(logger, "llm.fake.expand_truth", task="expand_truth")
         return self._pop(self.truth_drafts)
 
-    def extract_key_facts(self, truth: TruthDraft) -> KeyFactsDraft:
-        log_event(logger, "llm.fake.extract_key_facts", task="extract_key_facts")
-        return self._pop(self.key_facts_drafts)
+    def extract_solution_facts(
+        self,
+        core_truth: CoreTruthDraft,
+        truth: TruthDraft,
+        review_instruction: str | None = None,
+    ) -> SolutionFactsDraft:
+        log_event(
+            logger,
+            "llm.fake.extract_solution_facts",
+            task="extract_solution_facts",
+        )
+        return self._pop(self.solution_facts_drafts)
 
     def write_surface_story(
         self,
         topic: str,
         interpretation: TopicInterpretation,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         review_instruction: str | None = None,
     ) -> SurfaceStoryDraft:
         log_event(logger, "llm.fake.write_surface_story", task="write_surface_story")
         return self._pop(self.surface_story_drafts)
 
-    def generate_forbidden_assumptions(
+    def generate_assumptions(
         self,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         surface_story: SurfaceStoryDraft,
-    ) -> ForbiddenAssumptionsDraft:
+    ) -> AssumptionsDraft:
         log_event(
             logger,
-            "llm.fake.generate_forbidden_assumptions",
-            task="generate_forbidden_assumptions",
+            "llm.fake.generate_assumptions",
+            task="generate_assumptions",
         )
-        return self._pop(self.forbidden_assumptions_drafts)
+        return self._pop(self.assumptions_drafts)
 
     def review_puzzle(
         self,
@@ -960,9 +1041,9 @@ class FakeLlmClient:
         interpretation: TopicInterpretation,
         core_truth: CoreTruthDraft,
         truth: TruthDraft,
-        key_facts: KeyFactsDraft,
+        solution_facts: SolutionFactsDraft,
         surface_story: SurfaceStoryDraft,
-        forbidden_assumptions: list[str],
+        assumptions: AssumptionsDraft,
     ) -> PuzzleReviewResult:
         log_event(logger, "llm.fake.review_puzzle", task="review_puzzle")
         return self._pop(self.review_results)
@@ -1011,6 +1092,46 @@ def _prompt_summary(messages: list[SystemMessage | HumanMessage]) -> dict[str, i
         else:
             human_chars += len(content)
     return {"system_chars": system_chars, "human_chars": human_chars}
+
+
+def _solution_facts_from_legacy_drafts(
+    drafts: Sequence[KeyFactsDraft | Exception] | None,
+) -> list[SolutionFactsDraft | Exception] | None:
+    if drafts is None:
+        return None
+    converted: list[SolutionFactsDraft | Exception] = []
+    for draft in drafts:
+        if isinstance(draft, Exception):
+            converted.append(draft)
+            continue
+        facts = draft.key_facts
+        if not facts:
+            converted.append(
+                FakeLlmClient.default_solution_facts().model_copy(
+                    update={"required_solution_facts": [], "supporting_facts": []}
+                )
+            )
+            continue
+        converted.append(
+            SolutionFactsDraft(
+                required_solution_facts=[
+                    {
+                        "id": f"legacy_required_{index + 1}",
+                        "role": "other",
+                        "fact": fact,
+                    }
+                    for index, fact in enumerate(facts[:4])
+                ],
+                supporting_facts=[
+                    {
+                        "id": f"legacy_supporting_{index + 1}",
+                        "fact": fact,
+                    }
+                    for index, fact in enumerate(facts[4:])
+                ],
+            )
+        )
+    return converted
 
 
 def _truncate(message: str, max_chars: int = 240) -> str:
