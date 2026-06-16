@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma4:12b"
+    ollama_model: str = "gemma4:e4b"
     llm: LlmConfig = Field(default_factory=LlmConfig)
     puzzle: PuzzleConfig = Field(default_factory=PuzzleConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
@@ -60,4 +60,3 @@ def _load_config_file() -> dict[str, object]:
 def get_settings() -> Settings:
     config = _load_config_file()
     return Settings(**config)
-

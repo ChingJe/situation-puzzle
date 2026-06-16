@@ -45,7 +45,7 @@
   "ollama": {
     "status": "ok",
     "base_url": "http://localhost:11434",
-    "model": "gemma4:12b",
+    "model": "gemma4:e4b",
     "model_available": true
   },
   "storage": {
@@ -67,7 +67,7 @@
   "ollama": {
     "status": "unavailable",
     "base_url": "http://localhost:11434",
-    "model": "gemma4:12b",
+    "model": "gemma4:e4b",
     "model_available": false,
     "error": "connection refused"
   },
@@ -234,4 +234,3 @@ Response:
 ### `GET /api/history/{game_id}`
 
 回傳完整已結束遊戲紀錄，包含真相、問答與提交解答紀錄。
-

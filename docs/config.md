@@ -23,7 +23,7 @@
 
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma4:12b
+OLLAMA_MODEL=gemma4:e4b
 ```
 
 欄位：
@@ -86,4 +86,3 @@ cors_origins = ["http://localhost:5173"]
 ## API 設定
 
 - `cors_origins`：允許前端開發伺服器來源。
-

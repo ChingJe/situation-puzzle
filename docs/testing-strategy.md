@@ -23,7 +23,7 @@
 
 ## LLM 測試
 
-測試不直接呼叫本機 Ollama，不依賴 `gemma4:12b`。
+測試不直接呼叫本機 Ollama，不依賴指定的本機模型。
 
 使用 fake LLM 或 stub 固定輸出：
 
@@ -88,4 +88,3 @@ Makefile 可提供：
 make test-backend
 make check-frontend
 ```
-

@@ -12,7 +12,7 @@
 - LangGraph：遊戲流程與狀態轉移
 - LangChain + ChatOllama：Ollama API 呼叫與 structured output
 - Ollama：本地 LLM runtime
-- 預設模型：`gemma4:12b`
+- 預設模型：`gemma4:e4b`
 - React + Vite + TypeScript：前端互動介面
 - JSON 檔案：結束後遊戲紀錄儲存
 - Git：版本控制
@@ -115,4 +115,3 @@ situation-puzzle/
 8. AI 判定是否解開。未解開時只回「尚未解開」。
 9. 解開或放棄後，後端寫入 `data/games/{game_id}.json`。
 10. 歷史紀錄頁讀取已結束遊戲 JSON 並以對話紀錄形式渲染。
-

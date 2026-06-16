@@ -9,7 +9,7 @@
 - Node.js 18.19+（目前使用 Vite 6，以相容本機 Node 18）
 - npm
 - Ollama
-- Ollama 模型：`gemma4:12b`
+- Ollama 模型：`gemma4:e4b`
 
 ## 初始化
 
@@ -36,7 +36,7 @@ cp .env.example .env
 
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma4:12b
+OLLAMA_MODEL=gemma4:e4b
 ```
 
 `config.toml` 負責應用行為參數，例如 LLM retry、謎面字數、JSON 儲存路徑與 CORS。
@@ -46,7 +46,7 @@ OLLAMA_MODEL=gemma4:12b
 確認 Ollama 已啟動，並準備模型：
 
 ```bash
-ollama pull gemma4:12b
+ollama pull gemma4:e4b
 ```
 
 後端 health check 會檢查 Ollama 與模型是否可用。Ollama 不可用時 API 仍會啟動，但 `/api/health` 會回傳 `degraded`。
@@ -74,6 +74,18 @@ make dev-frontend
 ```
 
 預設前端開發伺服器為 <http://localhost:5173>，後端為 <http://localhost:8000>。Vite 已設定 `/api` proxy 到後端。
+
+WSL 環境中，dev server 會監聽 `0.0.0.0`，若 Windows 瀏覽器無法使用 `localhost` 連入，可在 WSL 查詢 IP 後改用該 IP：
+
+```bash
+hostname -I
+```
+
+例如：
+
+```text
+http://172.x.x.x:5173/
+```
 
 ## 測試與檢查
 

@@ -420,12 +420,12 @@
 
 目標：
 
-用真實 `gemma4:12b` 跑完整遊戲流程，調整 prompts 與 retry 設定。
+用真實 `gemma4:e4b` 跑完整遊戲流程，調整 prompts 與 retry 設定。
 
 前置條件：
 
 - 本機 Ollama 已啟動。
-- 已安裝 `gemma4:12b`。
+- 已安裝 `gemma4:e4b`。
 - `.env` 設定正確。
 
 驗收流程：
@@ -508,4 +508,3 @@
 - `uv run pytest` 通過。
 - 若牽涉前端，`npm run build` 通過。
 - Git working tree 中沒有 `.venv`、`node_modules`、`dist`、`data/games/*.json` 等環境產物。
-
