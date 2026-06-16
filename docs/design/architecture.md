@@ -138,7 +138,7 @@ situation-puzzle/
 
 - 題目生成屬於開局前一次性成本，約 10 分鐘生成時間可接受。
 - 優先確保題目品質、可玩性與勝負判定穩定性，而不是追求快速生成。
-- 後續正式架構應以 OpenAI-compatible provider 作為預設，並支援較長 request timeout。
+- 正式架構以 OpenAI-compatible provider 作為預設，並支援較長 request timeout。
 - `gemma4:e4b` 可保留作為較輕量任務或 fallback 測試對象，但不再視為題目生成品質的主要基準。
 
 ## LLM Provider Adapter

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import json
 import logging
 from time import perf_counter
 from typing import Any, Protocol, TypeVar
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -122,6 +124,19 @@ class LlmClient(Protocol):
     def health_check(self) -> dict[str, object]: ...
 
 
+def create_llm_client(settings: Settings) -> LlmClient:
+    provider = settings.llm_provider.strip().lower()
+    if provider == "ollama":
+        return OllamaLlmClient(settings)
+    if provider == "openai-compatible":
+        return OpenAICompatibleLlmClient(settings)
+    raise AppError(
+        ApiErrorCode.LLM_UNAVAILABLE,
+        message=f"不支援的 LLM_PROVIDER: {settings.llm_provider}",
+        status_code=503,
+    )
+
+
 class OllamaLlmClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -155,6 +170,7 @@ class OllamaLlmClient:
                 "llm.call.started",
                 llm_call_id=llm_call_id,
                 task=task,
+                provider="ollama",
                 model=self.settings.ollama_model,
                 base_url_host=_base_url_host(self.settings.ollama_base_url),
                 temperature=temperature,
@@ -486,6 +502,7 @@ class OllamaLlmClient:
                 "llm.health.unavailable",
                 level=logging.WARNING,
                 task="health_check",
+                provider="ollama",
                 model=self.settings.ollama_model,
                 base_url_host=_base_url_host(self.settings.ollama_base_url),
                 duration_ms=round((perf_counter() - start) * 1000, 2),
@@ -494,6 +511,7 @@ class OllamaLlmClient:
             )
             return {
                 "status": "unavailable",
+                "provider": "ollama",
                 "base_url": self.settings.ollama_base_url,
                 "model": self.settings.ollama_model,
                 "model_available": False,
@@ -510,6 +528,7 @@ class OllamaLlmClient:
                 "llm.health.unavailable",
                 level=logging.WARNING,
                 task="health_check",
+                provider="ollama",
                 model=self.settings.ollama_model,
                 base_url_host=_base_url_host(self.settings.ollama_base_url),
                 duration_ms=round((perf_counter() - start) * 1000, 2),
@@ -518,6 +537,7 @@ class OllamaLlmClient:
             )
             return {
                 "status": "unavailable",
+                "provider": "ollama",
                 "base_url": self.settings.ollama_base_url,
                 "model": self.settings.ollama_model,
                 "model_available": False,
@@ -535,6 +555,7 @@ class OllamaLlmClient:
             "llm.health.checked",
             level=logging.INFO if available else logging.WARNING,
             task="health_check",
+            provider="ollama",
             model=self.settings.ollama_model,
             base_url_host=_base_url_host(self.settings.ollama_base_url),
             model_available=available,
@@ -542,8 +563,214 @@ class OllamaLlmClient:
         )
         return {
             "status": "ok" if available else "unavailable",
+            "provider": "ollama",
             "base_url": self.settings.ollama_base_url,
             "model": self.settings.ollama_model,
+            "model_available": available,
+            **({} if available else {"error": "configured model not found"}),
+        }
+
+
+class OpenAICompatibleLlmClient(OllamaLlmClient):
+    def _invoke_structured(
+        self,
+        task: str,
+        schema: type[T],
+        messages: list[SystemMessage | HumanMessage],
+        temperature: float,
+    ) -> T:
+        start = perf_counter()
+        llm_call_id = f"llm_{uuid4().hex}"
+        last_error: Exception | None = None
+        attempts = (
+            self.settings.llm.request_max_retries
+            + self.settings.llm.structured_output_max_retries
+            + 1
+        )
+        with bind_log_context(llm_call_id=llm_call_id):
+            log_event(
+                logger,
+                "llm.call.started",
+                llm_call_id=llm_call_id,
+                task=task,
+                provider="openai-compatible",
+                model=self.settings.openai_compatible_model,
+                base_url_host=_base_url_host(self.settings.openai_compatible_base_url),
+                temperature=temperature,
+                request_timeout_seconds=self.settings.llm.request_timeout_seconds,
+                output_schema=schema.__name__,
+                prompt_summary=_prompt_summary(messages),
+            )
+            self._log_prompt_messages(task, messages, llm_call_id)
+            for attempt_index in range(attempts):
+                try:
+                    result = self._invoke_openai_compatible(
+                        schema,
+                        messages,
+                        temperature,
+                    )
+                    if self.settings.logging.raw_message_include_llm_responses:
+                        log_raw_message(
+                            self.settings,
+                            "llm.raw_response",
+                            task,
+                            result,
+                            content_type="json",
+                            llm_call_id=llm_call_id,
+                        )
+                    content = _openai_message_content(result)
+                    if not content:
+                        raise ValueError("empty message.content in LLM response")
+                    parsed_json = _parse_json_object_content(content)
+                    output = schema.model_validate(parsed_json)
+                    if self.settings.logging.raw_message_include_parsed_outputs:
+                        log_raw_message(
+                            self.settings,
+                            "llm.parsed_output",
+                            task,
+                            output.model_dump(mode="json"),
+                            content_type="json",
+                            llm_call_id=llm_call_id,
+                        )
+                    log_event(
+                        logger,
+                        "llm.call.finished",
+                        llm_call_id=llm_call_id,
+                        task=task,
+                        output_schema=schema.__name__,
+                        retry_count=attempt_index,
+                        duration_ms=round((perf_counter() - start) * 1000, 2),
+                    )
+                    return output
+                except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+                    last_error = exc
+                    log_event(
+                        logger,
+                        "llm.call.retry",
+                        level=logging.WARNING,
+                        llm_call_id=llm_call_id,
+                        task=task,
+                        retry_index=attempt_index + 1,
+                        retry_reason="validation_error",
+                        exception_type=type(exc).__name__,
+                        message=_truncate(str(exc)),
+                    )
+                except Exception as exc:
+                    last_error = exc
+                    log_event(
+                        logger,
+                        "llm.call.retry",
+                        level=logging.WARNING,
+                        llm_call_id=llm_call_id,
+                        task=task,
+                        retry_index=attempt_index + 1,
+                        retry_reason="request_error",
+                        exception_type=type(exc).__name__,
+                        message=_truncate(str(exc)),
+                    )
+        code = ApiErrorCode.LLM_OUTPUT_INVALID
+        if last_error and any(
+            token in str(last_error).lower()
+            for token in ("connection", "timeout", "refused", "unavailable", "urlopen")
+        ):
+            code = ApiErrorCode.LLM_UNAVAILABLE
+        log_event(
+            logger,
+            "llm.call.failed",
+            level=logging.ERROR,
+            llm_call_id=llm_call_id,
+            task=task,
+            error_code=code.value,
+            retry_count=attempts,
+            duration_ms=round((perf_counter() - start) * 1000, 2),
+            exception_type=type(last_error).__name__ if last_error else None,
+        )
+        raise AppError(code, status_code=503 if code == ApiErrorCode.LLM_UNAVAILABLE else 500)
+
+    def _invoke_openai_compatible(
+        self,
+        schema: type[BaseModel],
+        messages: list[SystemMessage | HumanMessage],
+        temperature: float,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "model": self.settings.openai_compatible_model,
+            "messages": _openai_messages(messages, schema),
+            "temperature": temperature,
+            "stream": False,
+            "response_format": {"type": "json_object"},
+        }
+        if self.settings.llm.openai_compatible_max_tokens > 0:
+            payload["max_tokens"] = self.settings.llm.openai_compatible_max_tokens
+
+        request = Request(
+            self.settings.openai_compatible_base_url.rstrip("/") + "/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urlopen(
+            request,
+            timeout=self.settings.llm.request_timeout_seconds,
+        ) as response:
+            body = response.read().decode("utf-8")
+        return json.loads(body)
+
+    def health_check(self) -> dict[str, object]:
+        start = perf_counter()
+        models_url = self.settings.openai_compatible_base_url.rstrip("/") + "/models"
+        try:
+            request = Request(models_url, headers={"Accept": "application/json"})
+            with urlopen(request, timeout=2) as response:
+                payload = response.read().decode("utf-8")
+            data = json.loads(payload)
+        except (OSError, URLError, HTTPError, json.JSONDecodeError) as exc:
+            log_event(
+                logger,
+                "llm.health.unavailable",
+                level=logging.WARNING,
+                task="health_check",
+                provider="openai-compatible",
+                model=self.settings.openai_compatible_model,
+                base_url_host=_base_url_host(self.settings.openai_compatible_base_url),
+                duration_ms=round((perf_counter() - start) * 1000, 2),
+                exception_type=type(exc).__name__,
+                message=_truncate(str(exc)),
+            )
+            return {
+                "status": "unavailable",
+                "provider": "openai-compatible",
+                "base_url": self.settings.openai_compatible_base_url,
+                "model": self.settings.openai_compatible_model,
+                "model_available": False,
+                "error": str(exc),
+            }
+
+        model_names = {
+            model.get("id") or model.get("name") or model.get("model")
+            for model in data.get("data", [])
+            if isinstance(model, dict)
+        }
+        available = self.settings.openai_compatible_model in model_names
+        log_event(
+            logger,
+            "llm.health.checked",
+            level=logging.INFO if available else logging.WARNING,
+            task="health_check",
+            provider="openai-compatible",
+            model=self.settings.openai_compatible_model,
+            base_url_host=_base_url_host(self.settings.openai_compatible_base_url),
+            model_available=available,
+            duration_ms=round((perf_counter() - start) * 1000, 2),
+        )
+        return {
+            "status": "ok" if available else "unavailable",
+            "provider": "openai-compatible",
+            "base_url": self.settings.openai_compatible_base_url,
+            "model": self.settings.openai_compatible_model,
             "model_available": available,
             **({} if available else {"error": "configured model not found"}),
         }
@@ -762,7 +989,8 @@ class FakeLlmClient:
         log_event(logger, "llm.fake.health_check", task="health_check")
         return {
             "status": "ok",
-            "base_url": "fake://ollama",
+            "provider": "fake",
+            "base_url": "fake://llm",
             "model": "fake",
             "model_available": True,
         }
@@ -798,3 +1026,60 @@ def _raw_response_payload(response: Any) -> Any:
     if hasattr(response, "dict"):
         return response.dict()
     return response
+
+
+def _openai_messages(
+    messages: list[SystemMessage | HumanMessage],
+    schema: type[BaseModel],
+) -> list[dict[str, str]]:
+    converted: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": (
+                "你必須只輸出單一 JSON object，不可輸出 markdown、前言或解釋。"
+                "JSON 必須符合以下 schema：\n"
+                + json.dumps(schema.model_json_schema(), ensure_ascii=False)
+            ),
+        }
+    ]
+    for message in messages:
+        role = "system" if isinstance(message, SystemMessage) else "user"
+        content = message.content if isinstance(message.content, str) else str(message.content)
+        converted.append({"role": role, "content": content})
+    return converted
+
+
+def _openai_message_content(response: dict[str, Any]) -> str:
+    choices = response.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ValueError("LLM response has no choices")
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        raise ValueError("LLM response choice is not an object")
+    message = first_choice.get("message")
+    if not isinstance(message, dict):
+        raise ValueError("LLM response choice has no message")
+    content = message.get("content")
+    if isinstance(content, str):
+        return content.strip()
+    raise ValueError("LLM response message.content is not text")
+
+
+def _parse_json_object_content(content: str) -> Any:
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise
+        return json.loads(stripped[start : end + 1])

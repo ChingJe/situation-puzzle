@@ -642,6 +642,8 @@
 
 ## 階段 15：正式支援 llama.cpp OpenAI-compatible Provider
 
+目前狀態：已完成基礎接線，仍需真實 llama.cpp + Qwen 人工驗收。
+
 目標：
 
 把 prompt lab 已驗證的 llama.cpp + Qwen 呼叫方式接入正式後端，讓正式遊戲流程預設使用 OpenAI-compatible provider，並仍可透過設定切換到 Ollama。

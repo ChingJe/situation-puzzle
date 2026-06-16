@@ -380,12 +380,6 @@ def judge_solution_user_prompt(
     previous = "\n".join(
         f"- Q: {record.question} / A: {record.display_answer}" for record in history
     )
-
-
-def _json_dump(value: object) -> str:
-    if hasattr(value, "model_dump"):
-        return json.dumps(value.model_dump(mode="json"), ensure_ascii=False, indent=2)
-    return json.dumps(value, ensure_ascii=False, indent=2)
     return "\n".join(
         [
             f"謎面：{puzzle.surface_story}",
@@ -397,3 +391,9 @@ def _json_dump(value: object) -> str:
             f"玩家解答：{solution}",
         ]
     )
+
+
+def _json_dump(value: object) -> str:
+    if hasattr(value, "model_dump"):
+        return json.dumps(value.model_dump(mode="json"), ensure_ascii=False, indent=2)
+    return json.dumps(value, ensure_ascii=False, indent=2)

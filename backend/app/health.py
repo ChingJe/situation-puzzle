@@ -11,23 +11,24 @@ logger = logging.getLogger("app.health")
 
 
 def get_health() -> HealthResponse:
-    ollama = get_llm_client().health_check()
+    llm = get_llm_client().health_check()
     storage = get_storage().writable_check()
-    status = "ok" if ollama.get("status") == "ok" and storage.get("status") == "ok" else "degraded"
+    status = "ok" if llm.get("status") == "ok" and storage.get("status") == "ok" else "degraded"
     log_event(
         logger,
         "health.checked",
         level=logging.INFO if status == "ok" else logging.WARNING,
         overall_status=status,
-        ollama_status=ollama.get("status"),
-        ollama_model=ollama.get("model"),
-        ollama_model_available=ollama.get("model_available"),
+        llm_provider=llm.get("provider"),
+        llm_status=llm.get("status"),
+        llm_model=llm.get("model"),
+        llm_model_available=llm.get("model_available"),
         storage_status=storage.get("status"),
         storage_writable=storage.get("writable"),
     )
     return HealthResponse(
         status=status,
         backend={"status": "ok"},
-        ollama=ollama,
+        llm=llm,
         storage=storage,
     )

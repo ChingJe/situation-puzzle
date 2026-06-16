@@ -26,7 +26,7 @@ DEFAULT_MESSAGES: dict[ApiErrorCode, str] = {
     ApiErrorCode.GAME_NOT_FOUND: "找不到遊戲",
     ApiErrorCode.GAME_ALREADY_ENDED: "遊戲已結束，不能繼續操作",
     ApiErrorCode.INVALID_QUESTION: "請輸入可用是／否回答的問題",
-    ApiErrorCode.LLM_UNAVAILABLE: "Ollama 或模型目前不可用",
+    ApiErrorCode.LLM_UNAVAILABLE: "LLM runtime 或模型目前不可用",
     ApiErrorCode.LLM_OUTPUT_INVALID: "模型輸出無法解析，請稍後再試",
     ApiErrorCode.STORAGE_ERROR: "遊戲紀錄讀寫失敗",
 }

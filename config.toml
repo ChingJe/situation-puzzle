@@ -5,6 +5,7 @@ structured_output_max_retries = 2
 generation_temperature = 0.8
 answer_temperature = 0.1
 judge_temperature = 0.1
+openai_compatible_max_tokens = 0
 
 [puzzle]
 surface_story_max_chars = 150

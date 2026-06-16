@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from app.config import get_settings
 from app.graph.workflow import SituationPuzzleWorkflow
-from app.llm.client import OllamaLlmClient
+from app.llm.client import LlmClient, create_llm_client
 from app.services.game_service import GameService
 from app.storage import GameStorage
 
@@ -15,8 +15,8 @@ def get_storage() -> GameStorage:
 
 
 @lru_cache
-def get_llm_client() -> OllamaLlmClient:
-    return OllamaLlmClient(get_settings())
+def get_llm_client() -> LlmClient:
+    return create_llm_client(get_settings())
 
 
 @lru_cache

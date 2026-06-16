@@ -2,11 +2,13 @@ from app.config import PuzzleConfig, PuzzleGenerationConfig
 from app.llm.prompts import (
     answer_question_system_prompt,
     generate_core_truth_system_prompt,
+    judge_solution_user_prompt,
     judge_solution_system_prompt,
     puzzle_generation_system_prompt,
     review_puzzle_system_prompt,
     write_surface_story_system_prompt,
 )
+from app.llm.client import FakeLlmClient
 
 
 def test_puzzle_generation_prompt_uses_tested_quality_rules() -> None:
@@ -51,3 +53,16 @@ def test_judge_solution_prompt_requires_core_causality() -> None:
     assert "關鍵行動者做了什麼" in prompt
     assert "只猜到不是偷竊、不是超自然、只是誤會" in prompt
     assert "key_facts 為最低必要門檻" in prompt
+
+
+def test_judge_solution_user_prompt_contains_solution_context() -> None:
+    from app.models import Puzzle
+
+    puzzle = Puzzle.from_draft(FakeLlmClient.default_puzzle())
+
+    prompt = judge_solution_user_prompt(puzzle, "玩家提交的解答", [])
+
+    assert "謎面：" in prompt
+    assert puzzle.surface_story in prompt
+    assert "完整真相：" in prompt
+    assert "玩家提交的解答" in prompt

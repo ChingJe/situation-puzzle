@@ -255,5 +255,5 @@ class HealthComponent(ApiModel):
 class HealthResponse(ApiModel):
     status: Literal["ok", "degraded"]
     backend: dict[str, str]
-    ollama: dict[str, object]
+    llm: dict[str, object]
     storage: dict[str, object]

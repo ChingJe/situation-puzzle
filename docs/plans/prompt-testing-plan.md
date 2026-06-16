@@ -546,7 +546,7 @@ final_pipeline_status：
 - 接受約 10 分鐘開局生成時間作為合理 tradeoff。
 - 主要生成模型與後續正式預設改以 `qwen3.6-35b-a3b` 為基準。
 - `gemma4:e4b` 保留為輕量任務、fallback 或對照測試，不再作為題目生成品質主要基準。
-- OpenAI-compatible provider 支援應納入後續正式後端實作任務，不能只停留在 prompt lab。
+- OpenAI-compatible provider 已納入正式後端；後續 prompt testing 可直接透過正式 app 或 prompt lab 對照驗證。
 
 ### 第三輪後續驗收方式
 

@@ -69,7 +69,7 @@ ollama pull gemma4:e4b
 
 後端 health check 會檢查目前選定的 LLM provider 與模型是否可用。LLM runtime 不可用時 API 仍會啟動，但 `/api/health` 會回傳 `degraded`。
 
-注意：目前正式後端仍待完成 OpenAI-compatible provider adapter 實作；相關設計與實作計畫見 `docs/design/architecture.md` 與 `docs/plans/development-plan.md`。
+正式後端已支援 `LLM_PROVIDER=openai-compatible` 與 `LLM_PROVIDER=ollama` 切換。預設建議使用 llama.cpp + Qwen；Ollama 可保留作為替代 runtime。
 
 ## 開發命令
 

@@ -11,12 +11,13 @@ CONFIG_PATH = ROOT_DIR / "config.toml"
 
 
 class LlmConfig(BaseSettings):
-    request_timeout_seconds: int = 120
+    request_timeout_seconds: int = 600
     request_max_retries: int = 2
     structured_output_max_retries: int = 2
     generation_temperature: float = 0.8
     answer_temperature: float = 0.1
     judge_temperature: float = 0.1
+    openai_compatible_max_tokens: int = 0
 
 
 class PuzzleConfig(BaseSettings):
@@ -71,8 +72,11 @@ class LoggingConfig(BaseSettings):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    llm_provider: str = "openai-compatible"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gemma4:e4b"
+    openai_compatible_base_url: str = "http://localhost:18080/v1"
+    openai_compatible_model: str = "qwen3.6-35b-a3b"
     log_level: str | None = None
     llm: LlmConfig = Field(default_factory=LlmConfig)
     puzzle: PuzzleConfig = Field(default_factory=PuzzleConfig)
