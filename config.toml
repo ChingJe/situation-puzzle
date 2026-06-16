@@ -1,0 +1,24 @@
+[llm]
+request_timeout_seconds = 120
+request_max_retries = 2
+structured_output_max_retries = 2
+generation_temperature = 0.8
+answer_temperature = 0.1
+judge_temperature = 0.1
+
+[puzzle]
+surface_story_max_chars = 150
+truth_min_chars = 300
+truth_max_chars = 800
+key_facts_min = 4
+key_facts_max = 8
+language = "zh-TW"
+content_style = "懸疑、適合一般玩家、避免露骨血腥描寫"
+
+[storage]
+data_dir = "data"
+games_dir = "data/games"
+
+[api]
+cors_origins = ["http://localhost:5173"]
+
