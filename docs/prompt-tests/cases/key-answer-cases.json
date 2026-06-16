@@ -1,0 +1,12 @@
+[
+  {"question": "鑰匙真的被偷走了嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "少掉的是儲藏室的門鎖鑰匙嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "租客是故意拿走那把鑰匙的嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "鑰匙還在玄關櫃附近嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "那把鑰匙掉進玄關櫃和牆壁之間的縫隙了嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "鑰匙掉在房間床底下了嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "房東只注意到鑰匙圈少了一把嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "這件事和晚餐內容有關嗎？", "expected": {"is_valid_question": true, "answer": "irrelevant"}},
+  {"question": "這是因為租客搬家前整理物品造成的嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "請直接告訴我鑰匙在哪裡。", "expected": {"is_valid_question": false, "answer": null}}
+]

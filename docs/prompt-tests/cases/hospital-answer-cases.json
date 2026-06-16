@@ -1,0 +1,12 @@
+[
+  {"question": "眼鏡被偷走了嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "陳先生把眼鏡收走了嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "眼鏡被放進陳先生的背包裡了嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "陳先生是惡意拿走眼鏡的嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "小雅看見陳先生整理眼鏡卻沒有提醒嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "眼鏡被藏在病房其他角落了嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "林小姐回來後懷疑發生失竊嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "這件事需要醫療專業知識才能解開嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "這件事和病房裡的午餐菜色有關嗎？", "expected": {"is_valid_question": true, "answer": "irrelevant"}},
+  {"question": "請給我提示。", "expected": {"is_valid_question": false, "answer": null}}
+]

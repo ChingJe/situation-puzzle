@@ -1,0 +1,8 @@
+[
+  {"solution": "鑰匙沒有被偷，租客搬家前整理東西時把鑰匙圈放在玄關櫃上，其中那把小的儲藏室鑰匙掉進櫃子和牆壁的縫隙，房東只看到鑰匙圈少了一把。", "expected": {"solved": true}},
+  {"solution": "真相是租客整理房間時把所有東西集中到玄關櫃，鑰匙圈掛回去時小鑰匙掉到玄關櫃和牆壁之間，所以她以為東西都在原位。", "expected": {"solved": true}},
+  {"solution": "鑰匙其實還在玄關附近，不是被偷走的。", "expected": {"solved": false}},
+  {"solution": "租客把鑰匙圈掛回去了，所以房東看到少一把。", "expected": {"solved": false}},
+  {"solution": "房東把那把鑰匙偷偷藏起來，想測試租客有沒有說謊。", "expected": {"solved": false}},
+  {"solution": "鑰匙被寵物叼到室外，所以房東找不到。", "expected": {"solved": false}}
+]

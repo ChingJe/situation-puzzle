@@ -1,0 +1,12 @@
+[
+  {"question": "風扇是靠超自然力量轉動的嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "舊教室完全斷電了嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "清潔工早上開啟了風扇嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "清潔工開風扇是為了測試排氣通風系統嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "學生和老師進來時有看到臨時電線嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "有人躲在教室裡操作風扇嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "教室燈關著就代表風扇一定不能有電嗎？", "expected": {"is_valid_question": true, "answer": "no"}},
+  {"question": "這件事和生日派對有關嗎？", "expected": {"is_valid_question": true, "answer": "irrelevant"}},
+  {"question": "風扇持續轉動的原因是日常維護嗎？", "expected": {"is_valid_question": true, "answer": "yes"}},
+  {"question": "你覺得這個場景可不可怕？", "expected": {"is_valid_question": false, "answer": null}}
+]

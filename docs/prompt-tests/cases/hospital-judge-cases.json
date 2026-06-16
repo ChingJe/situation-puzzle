@@ -1,0 +1,8 @@
+[
+  {"solution": "眼鏡不是被偷，是陳先生幫林小姐整理物品時誤以為眼鏡要一起收起來，放進了自己的背包，林小姐回來看到床頭櫃空了才以為失竊。", "expected": {"solved": true}},
+  {"solution": "陳先生出於整理病房的好意把林小姐的眼鏡收進自己背包，小雅看到但沒提醒，所以林小姐回來誤會眼鏡失蹤。", "expected": {"solved": true}},
+  {"solution": "眼鏡只是被移動了，並沒有真的失竊。", "expected": {"solved": false}},
+  {"solution": "護理師知道眼鏡的位置，所以沒有特別提醒林小姐。", "expected": {"solved": false}},
+  {"solution": "醫院保全偷走眼鏡，後來又放回來。", "expected": {"solved": false}},
+  {"solution": "林小姐自己忘記把眼鏡戴走了。", "expected": {"solved": false}}
+]

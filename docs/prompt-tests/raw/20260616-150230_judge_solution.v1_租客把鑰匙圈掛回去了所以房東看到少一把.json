@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-06-16T15:02:30+08:00",
+  "task": "judge_solution",
+  "status": "ok",
+  "error": null,
+  "model": "gemma4:e4b",
+  "prompt_version": "judge_solution.v1",
+  "puzzle_file": "docs/prompt-tests/raw/20260616-144810_generate_puzzle.v7_失蹤的鑰匙.json",
+  "solution": "租客把鑰匙圈掛回去了，所以房東看到少一把。",
+  "expected": {
+    "solved": false
+  },
+  "duration_ms": 8711.09,
+  "system_prompt": "你是海龜湯遊戲主持人，負責判定玩家提交的完整解答是否已抓到核心真相。\n只回傳 solved 布林值，不提供提示或解釋。\nsolved=true 的條件：玩家解答不必逐字相同，但必須涵蓋 key_facts 中足以說明謎面異常的主要角色、關鍵行動、原因、結果與誤導點。\n若玩家只猜到主題、氣氛、單一片段，或缺少關鍵因果，必須回傳 solved=false。\n若玩家說法與 truth 的核心事實衝突，即使有部分命中，也必須回傳 solved=false。",
+  "output": {
+    "solved": false
+  }
+}

@@ -18,3 +18,8 @@ frontend/dist/
 data/games/*.json
 logs/*.log
 logs/*.log.*
+
+# Local scratch files for prompt experiments. Curated prompt-test records under
+# docs/prompt-tests/ are intentionally versioned when they document a test run.
+docs/prompt-tests/tmp/
+docs/prompt-tests/*.local.*

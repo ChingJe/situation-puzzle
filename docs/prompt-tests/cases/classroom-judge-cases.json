@@ -1,0 +1,8 @@
+[
+  {"solution": "舊教室沒有完全斷電，清潔工早上接臨時電源開啟角落的排氣風扇做例行測試，學生和老師進來時沒看到電線和清潔工，所以以為關燈後風扇還自己轉。", "expected": {"solved": true}},
+  {"solution": "風扇不是幽靈造成的，是維護清潔工為了測試通風系統開的，教室雖然關燈但仍有電源，兩人只看到風扇轉動而沒看到原因。", "expected": {"solved": true}},
+  {"solution": "風扇是因為還有電，所以不是超自然。", "expected": {"solved": false}},
+  {"solution": "之前有清潔工來過，所以風扇才會轉。", "expected": {"solved": false}},
+  {"solution": "窗外的風把吊扇吹動了。", "expected": {"solved": false}},
+  {"solution": "教室有自動感應器，黑暗中自己啟動風扇。", "expected": {"solved": false}}
+]
