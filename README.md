@@ -142,7 +142,7 @@ rg '"game_id":"..."' logs/app.log
 LOG_LEVEL=INFO
 ```
 
-預設不記錄完整 `truth`、`key_facts`、`forbidden_assumptions`。詳細設計見 `docs/logging-design.md`。
+Structured event log 預設只保留摘要；完整 prompt、模型回覆與解析結果由 raw message log 管理。詳細設計見 `docs/design/logging-design.md`。
 
 ## API 摘要
 
@@ -155,4 +155,4 @@ LOG_LEVEL=INFO
 - `GET /api/history`
 - `GET /api/history/{game_id}`
 
-完整設計見 `docs/`。
+完整設計見 `docs/design/`，開發與測試計畫見 `docs/plans/`，已知問題紀錄見 `docs/issue/`。

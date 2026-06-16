@@ -130,4 +130,4 @@ raw_message_include_parsed_outputs = true
 
 `raw_message_mode = "full"` 會保存完整謎底、key facts、prompt 與模型輸出。此專案以本機開發觀測為主，因此這是可接受的預設；log 檔仍不得 commit。
 
-詳細設計見 `docs/logging-design.md`。
+詳細設計見 `docs/design/logging-design.md`。

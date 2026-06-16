@@ -303,7 +303,7 @@
 
 驗收標準：
 
-- 所有 API response 符合 `docs/api-design.md`。
+- 所有 API response 符合 `docs/design/api-design.md`。
 - 錯誤 response 一律符合統一格式。
 - 遊戲進行中 API 不洩漏 `truth` 等隱藏欄位。
 - API 測試使用 fake LLM，不依賴 Ollama。
@@ -465,6 +465,8 @@
 
 - `README.md`
 - `docs/*.md`
+- `docs/design/*.md`
+- `docs/issue/*.md`
 - `Makefile`
 
 實作內容：
@@ -501,7 +503,7 @@
 - `backend/app/storage.py`
 - `backend/app/health.py`
 - `backend/tests/test_logging.py`
-- `docs/logging-design.md`
+- `docs/design/logging-design.md`
 
 實作內容：
 

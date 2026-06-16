@@ -75,6 +75,9 @@ situation-puzzle/
   data/
     games/
   docs/
+    design/
+    plans/
+    issue/
   config.toml
   pyproject.toml
   uv.lock
