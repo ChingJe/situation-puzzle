@@ -57,6 +57,19 @@ games_dir = "data/games"
 
 [api]
 cors_origins = ["http://localhost:5173"]
+
+[logging]
+level = "INFO"
+format = "json"
+log_dir = "logs"
+file_enabled = true
+console_enabled = true
+max_file_mb = 10
+backup_count = 5
+log_prompt_preview = false
+prompt_preview_chars = 160
+log_llm_output_preview = false
+llm_output_preview_chars = 160
 ```
 
 ## LLM 設定
@@ -86,3 +99,19 @@ cors_origins = ["http://localhost:5173"]
 ## API 設定
 
 - `cors_origins`：允許前端開發伺服器來源。
+
+## Logging 設定
+
+- `level`：後端 log level，可由 `.env` 的 `LOG_LEVEL` 覆蓋。
+- `format`：第一版固定建議使用 `json`。
+- `log_dir`：本地 log 目錄。
+- `file_enabled`：是否輸出到 rotating file。
+- `console_enabled`：是否輸出到 console。
+- `max_file_mb`：單一 log 檔最大大小。
+- `backup_count`：rotation 備份數。
+- `log_prompt_preview`：是否記錄 prompt preview，預設關閉。
+- `prompt_preview_chars`：prompt preview 最大字數。
+- `log_llm_output_preview`：是否記錄 LLM output preview，預設關閉。
+- `llm_output_preview_chars`：LLM output preview 最大字數。
+
+詳細設計見 `docs/logging-design.md`。

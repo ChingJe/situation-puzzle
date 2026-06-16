@@ -49,6 +49,8 @@ situation-puzzle/
       config.py
       errors.py
       models.py
+      logging_config.py
+      middleware.py
       storage.py
       llm/
         __init__.py
@@ -87,6 +89,8 @@ situation-puzzle/
 - `main.py`：FastAPI app、router 掛載、CORS、health check。
 - `config.py`：載入 `config.toml`、`.env` 與環境變數，建立 Settings。
 - `errors.py`：統一 API 錯誤格式與錯誤碼。
+- `logging_config.py`：初始化後端 structured logging、handler、formatter 與 context 欄位。
+- `middleware.py`：request id middleware、HTTP request start/end logging。
 - `models.py`：API request/response、遊戲紀錄、structured output schema。
 - `storage.py`：讀寫 `data/games/*.json`、歷史紀錄摘要。
 - `llm/client.py`：建立 ChatOllama、structured output、retry 封裝。
@@ -95,6 +99,7 @@ situation-puzzle/
 - `graph/nodes.py`：`generate_puzzle`、`answer_question`、`judge_solution`、`finalize_game`。
 - `graph/workflow.py`：LangGraph workflow 建立與編譯。
 - `services/game_service.py`：遊戲生命週期、記憶體 session 管理、呼叫 graph、呼叫 storage。
+- `logs/`：本地 JSON lines log 輸出目錄，不進 git。
 
 ## 前端模組責任
 

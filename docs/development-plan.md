@@ -484,6 +484,50 @@
 - `make test-backend` 通過。
 - `make check-frontend` 通過。
 
+## 階段 13：Logging 與可觀察性
+
+目標：
+
+補上後端 structured logging，讓開發者可以觀察 API request、GameService 狀態轉移、LangGraph 節點、LLM call/retry/failure、storage 與環境 health。
+
+主要檔案：
+
+- `backend/app/logging_config.py`
+- `backend/app/middleware.py`
+- `backend/app/services/game_service.py`
+- `backend/app/graph/workflow.py`
+- `backend/app/graph/nodes.py`
+- `backend/app/llm/client.py`
+- `backend/app/storage.py`
+- `backend/app/health.py`
+- `backend/tests/test_logging.py`
+- `docs/logging-design.md`
+
+實作內容：
+
+- 新增 `config.toml` `[logging]` 設定。
+- 新增 `.env` 的 `LOG_LEVEL` 覆蓋。
+- 實作 JSON lines formatter。
+- 實作 rotating file handler，預設輸出 `logs/app.log`。
+- 實作 request id middleware，response 回傳 `X-Request-ID`。
+- 使用 contextvars 讓同一 request 內 log 自動帶 `request_id`。
+- GameService 記錄 create、ask、invalid question、submit、abandon、finalize。
+- Graph workflow/node 記錄 node start/end/failure。
+- LLM client 記錄 task、model、retry、structured output validation failure、duration。
+- Storage 記錄 read/write/list 與 corrupt JSON skipped。
+- Health 記錄 Ollama/storage summary。
+- 確保 log 不包含完整 `truth`、`key_facts`、`forbidden_assumptions`。
+
+驗收標準：
+
+- `POST /api/games` 可在 log 中用同一個 `request_id` 串起 route、service、graph、LLM 事件。
+- 同一局可用 `game_id` 查到所有 game lifecycle 事件。
+- Ollama unavailable、model not found、structured output failure 均有明確 log。
+- 無效問題記錄 `INVALID_QUESTION`，但不寫入正式問答紀錄。
+- storage 損壞 JSON 被跳過時有 warning log。
+- pytest 可驗證 log 不洩漏完整隱藏答案。
+- `uv run pytest` 通過。
+
 ## 建議實作順序摘要
 
 1. 資料模型與錯誤格式。
