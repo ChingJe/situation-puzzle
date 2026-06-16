@@ -22,3 +22,22 @@ games_dir = "data/games"
 [api]
 cors_origins = ["http://localhost:5173"]
 
+[logging]
+level = "INFO"
+format = "json"
+log_dir = "logs"
+file_enabled = true
+console_enabled = true
+max_file_mb = 10
+backup_count = 5
+log_prompt_preview = false
+prompt_preview_chars = 160
+log_llm_output_preview = false
+llm_output_preview_chars = 160
+raw_message_mode = "full"
+raw_message_log_file = "logs/messages.log"
+raw_message_max_chars = 20000
+raw_message_include_player_messages = true
+raw_message_include_llm_prompts = true
+raw_message_include_llm_responses = true
+raw_message_include_parsed_outputs = true

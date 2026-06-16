@@ -11,7 +11,7 @@
 - storage 是否成功寫入或讀取歷史紀錄。
 - WSL、Windows Ollama、模型設定等環境問題發生在哪一層。
 
-本文件定義第一版 logging 設計，目標是讓本地開發時可以快速定位問題，同時避免在 log 中洩漏完整謎底或玩家輸入的敏感內容。
+本文件定義第一版 logging 設計，目標是讓本地開發時可以快速定位問題。此專案假設後端 log 是開發者觀測工具，不把「玩家主動翻 log 看到答案」視為需要防範的主要情境。
 
 ## 設計目標
 
@@ -19,8 +19,8 @@
 - 後端 log 採結構化 JSON lines，方便日後 grep、jq、匯入其他工具。
 - 每個 API request 有 `request_id`，每局遊戲有 `game_id`，每次 LLM 呼叫有 `llm_call_id`。
 - 能觀察 agent 工作流程：graph node start/end、LLM task、retry、validation error、耗時。
-- 預設不記錄完整 `truth`、`key_facts`、`forbidden_assumptions`。
-- 開發環境可以透過 config 打開更詳細 log，但仍需做長度限制與敏感欄位遮蔽。
+- structured event log 以事件摘要、狀態、耗時為主，避免太吵。
+- raw message log 可以完整保存玩家 request、LLM prompt、Ollama raw response 與 parsed output，作為本機除錯主要依據。
 - 前端顯示一般錯誤訊息即可，詳細除錯資訊留在後端 log。
 
 ## 非目標
@@ -31,7 +31,7 @@
 - Prometheus metrics。
 - ELK、Loki、Grafana 等外部服務。
 - 前端遠端 log 上報。
-- 將完整 prompt 與完整 LLM raw output 永久保存。
+- 將完整 prompt 與完整 LLM raw output 上傳到外部服務或作為 production 長期稽核資料保存。
 - 在瀏覽器 UI 顯示後端 debug trace。
 
 這些可在核心流程穩定後再評估。
@@ -81,12 +81,14 @@
 - structured output retry 次數。
 - validation error 摘要。
 
-不可記錄：
+一般 structured event log 不建議記錄：
 
 - 完整 `truth`。
 - 完整 `key_facts`。
 - 完整 prompt。
 - 完整 raw LLM output。
+
+這不是為了避免玩家暴雷，而是為了讓 `logs/app.log` 保持可掃描。完整內容由 raw message log 負責。
 
 ### INFO
 
@@ -363,7 +365,12 @@ level：ERROR
 
 ## Prompt 與 Output 記錄策略
 
-第一版預設不記完整 prompt 或 raw output。
+第一版將 log 分成兩種：
+
+- structured event log：預設開啟，寫入 `logs/app.log`，記錄事件、狀態、耗時、長度摘要，不寫完整內容。
+- raw message log：寫入 `logs/messages.log`，可記錄完整玩家輸入、agent prompt、Ollama raw response、parsed structured output。
+
+structured event log 不記完整 prompt 或 raw output，完整內容統一進 raw message log。
 
 可記錄摘要：
 
@@ -398,11 +405,197 @@ llm_output_preview_chars = 160
 - 使用者 solution preview。
 - surface story preview。
 
-禁止記錄：
+structured event log 不記錄：
 
 - 完整 truth。
 - key facts 列表內容。
 - forbidden assumptions 內容。
+
+上述規則只適用於 structured event log。raw message log 可以保存這些內容，因為生成題目與判定流程需要看到完整 agent/Ollama 互動才能除錯。
+
+## Raw Message Log
+
+raw message log 用於觀察「玩家輸入 -> agent prompt -> Ollama raw response -> parsed output」的完整資料流。這類 log 對調整 prompt、debug structured output、判斷模型是否照規則回答非常重要，因此應完整保存足夠資訊。
+
+### 基本規則
+
+- 開發環境預設建議開啟。
+- 只作為本機開發觀測資料使用。
+- 不輸出到 console。
+- 不進 git。
+- 使用獨立檔案 `logs/messages.log`。
+- 每筆 raw message 必須帶 `request_id`。
+- 若已建立遊戲，必須帶 `game_id`。
+- 每次 LLM 呼叫必須帶 `llm_call_id`。
+- 每筆 raw message 必須有 `message_kind` 與 `task`。
+
+### Mode
+
+建議用 `raw_message_mode` 控制：
+
+```text
+off
+preview
+full
+```
+
+- `off`：不記 raw message，僅在需要減少磁碟輸出或正式部署時使用。
+- `preview`：記錄截斷內容，方便看大致輸入輸出，但不保存完整謎底。
+- `full`：記錄完整內容，包含 hidden puzzle data、完整 prompt、Ollama raw response 與 parsed output。
+
+本機開發預設建議使用 `full`。若未來有部署環境，再把部署環境預設改為 `off` 或 `preview`。
+
+### Raw Message Event
+
+使用 JSON lines，每行一筆。
+
+欄位：
+
+- `ts`
+- `level`
+- `logger`
+- `event`: 固定為 `raw.message`
+- `request_id`
+- `game_id`，若已有
+- `llm_call_id`，若是 LLM 相關
+- `message_kind`
+- `task`
+- `mode`
+- `content_type`
+- `content`
+- `content_chars`
+- `truncated`
+
+`message_kind` 建議值：
+
+- `http.request.body`
+- `player.topic`
+- `player.question`
+- `player.solution`
+- `llm.system_prompt`
+- `llm.human_prompt`
+- `llm.raw_response`
+- `llm.parsed_output`
+- `agent.decision`
+
+`task` 建議值：
+
+- `create_game`
+- `ask_question`
+- `submit_solution`
+- `abandon_game`
+- `generate_puzzle`
+- `answer_question`
+- `judge_solution`
+- `history`
+- `health_check`
+
+### 範例
+
+玩家建立題目：
+
+```json
+{
+  "ts": "2026-06-16T13:25:00.123+08:00",
+  "level": "DEBUG",
+  "logger": "app.raw_messages",
+  "event": "raw.message",
+  "request_id": "req_abc",
+  "message_kind": "player.topic",
+  "task": "create_game",
+  "mode": "full",
+  "content_type": "text",
+  "content": "雨夜、便利商店、一張沒有人認領的發票",
+  "content_chars": 21,
+  "truncated": false
+}
+```
+
+LLM prompt：
+
+```json
+{
+  "ts": "2026-06-16T13:25:01.000+08:00",
+  "level": "DEBUG",
+  "logger": "app.raw_messages",
+  "event": "raw.message",
+  "request_id": "req_abc",
+  "llm_call_id": "llm_def",
+  "message_kind": "llm.human_prompt",
+  "task": "generate_puzzle",
+  "mode": "full",
+  "content_type": "text",
+  "content": "玩家提供的主題如下...",
+  "content_chars": 430,
+  "truncated": false
+}
+```
+
+Parsed structured output：
+
+```json
+{
+  "ts": "2026-06-16T13:25:20.000+08:00",
+  "level": "DEBUG",
+  "logger": "app.raw_messages",
+  "event": "raw.message",
+  "request_id": "req_abc",
+  "game_id": "9b5f...",
+  "llm_call_id": "llm_def",
+  "message_kind": "llm.parsed_output",
+  "task": "generate_puzzle",
+  "mode": "full",
+  "content_type": "json",
+  "content": {
+    "title": "雨夜發票",
+    "surface_story": "...",
+    "truth": "...",
+    "key_facts": ["..."],
+    "forbidden_assumptions": ["..."],
+    "difficulty": "medium"
+  },
+  "content_chars": 720,
+  "truncated": false
+}
+```
+
+### 記錄點
+
+GameService：
+
+- `create_game(topic)` 記錄 `player.topic`。
+- `ask_question(question)` 記錄 `player.question`。
+- `submit_solution(solution)` 記錄 `player.solution`。
+
+LLM client：
+
+- invoke 前記錄 `llm.system_prompt`。
+- invoke 前記錄 `llm.human_prompt`。
+- invoke 後若能取得 raw response，記錄 `llm.raw_response`。
+- structured output 驗證成功後，記錄 `llm.parsed_output`。
+- structured output 驗證失敗時，記錄失敗的 raw response 或 exception 摘要。
+
+API middleware：
+
+- 第一版不建議 middleware 全量記錄 request body，避免破壞 streaming/body read 流程。
+- 若未來需要記錄 HTTP raw body，應在 route 或 service 層記錄已解析後的 request model。
+
+### 操作提醒
+
+`raw_message_mode = "full"` 會保存：
+
+- 完整玩家主題、問題、解答。
+- 完整 prompt。
+- 完整模型輸出。
+- 完整謎底。
+- key facts。
+- forbidden assumptions。
+
+因此：
+
+- 不得 commit `logs/messages.log`。
+- raw message log 應視為本機除錯資料。
+- 若要分享 log，應先確認內容是否適合外流，或改用 `preview` 模式重現問題。
 
 ## Storage Event
 
@@ -522,6 +715,13 @@ log_prompt_preview = false
 prompt_preview_chars = 160
 log_llm_output_preview = false
 llm_output_preview_chars = 160
+raw_message_mode = "full"
+raw_message_log_file = "logs/messages.log"
+raw_message_max_chars = 20000
+raw_message_include_player_messages = true
+raw_message_include_llm_prompts = true
+raw_message_include_llm_responses = true
+raw_message_include_parsed_outputs = true
 ```
 
 新增 `.env` 可覆蓋：
@@ -532,7 +732,7 @@ LOG_LEVEL=INFO
 
 分工：
 
-- `config.toml`：log 格式、檔案路徑、rotation、preview 行為。
+- `config.toml`：log 格式、檔案路徑、rotation、preview/raw message 行為。本機開發預設可使用完整 raw message log。
 - `.env`：每台機器可能不同的 log level。
 
 ## 檔案輸出
@@ -544,6 +744,14 @@ logs/app.log
 ```
 
 格式：JSON lines。
+
+若啟用 raw message log，額外輸出：
+
+```text
+logs/messages.log
+```
+
+`logs/app.log` 用於查事件與耗時；`logs/messages.log` 用於查完整玩家 request、agent prompt、Ollama response 與 parsed output。
 
 rotation：
 
@@ -576,6 +784,7 @@ backend/tests/test_logging.py
 - 設定 JSON formatter。
 - 設定 console handler。
 - 設定 rotating file handler。
+- 設定 raw message handler。
 - 注入 context fields。
 
 `middleware.py`：
@@ -596,6 +805,7 @@ backend/app/observability.py
 - `set_game_id()`
 - `safe_preview()`
 - `log_event(logger, event, **fields)`
+- `log_raw_message(kind, task, content, **fields)`
 
 ## 測試策略
 
@@ -608,7 +818,10 @@ backend/app/observability.py
 - LLM fake retry 可產生 `llm.call.retry`。
 - structured output failure 會產生 `LLM_OUTPUT_INVALID` log。
 - storage corrupt JSON 會產生 warning log。
-- log 不包含 `truth`、`key_facts` 內容。
+- structured event log 不包含 `truth`、`key_facts` 內容。
+- raw message 本機開發預設開啟。
+- raw message `preview` 模式會截斷內容。
+- raw message `full` 模式可記錄完整玩家輸入、LLM prompt、Ollama output 與 parsed output。
 
 測試工具：
 
@@ -637,13 +850,18 @@ make dev-backend
    - 能以 `request_id` 串起 API request 與 LLM call。
    - 能以 `game_id` 找到同一局所有事件。
    - 能看到 LLM task 耗時與 retry。
-   - 看不到完整 truth 或 key facts。
+   - event log 仍保持摘要化，適合快速掃描。
+8. 檢查 `logs/messages.log`：
+   - 能以同一個 `request_id` 串起玩家輸入與 LLM 呼叫。
+   - 能以同一個 `llm_call_id` 找到 prompt、raw response、parsed output。
+   - 能看到完整 Ollama 回覆，用於 debug structured output。
 
 範例查詢：
 
 ```bash
 rg '"game_id":"<game_id>"' logs/app.log
 rg '"event":"llm.call.retry"' logs/app.log
+rg '"llm_call_id":"<llm_call_id>"' logs/messages.log
 ```
 
 若安裝 `jq`：
@@ -651,6 +869,7 @@ rg '"event":"llm.call.retry"' logs/app.log
 ```bash
 jq 'select(.game_id == "<game_id>")' logs/app.log
 jq 'select(.level == "ERROR")' logs/app.log
+jq 'select(.llm_call_id == "<llm_call_id>")' logs/messages.log
 ```
 
 ## 實作順序
@@ -663,8 +882,11 @@ jq 'select(.level == "ERROR")' logs/app.log
 6. 在 graph workflow/node 增加 node start/end log。
 7. 在 LLM client 增加 call/retry/failure log。
 8. 在 storage 與 health 增加環境與讀寫 log。
-9. 補 pytest `caplog` 測試。
-10. 更新 README 開發除錯章節。
+9. 實作 raw message logger 與 `logs/messages.log`，本機開發預設 full。
+10. 在 GameService 記錄玩家 raw message。
+11. 在 LLM client 記錄 prompt、raw response、parsed output。
+12. 補 pytest `caplog` 與 temporary log file 測試。
+13. 更新 README 開發除錯章節。
 
 ## 後續擴充
 

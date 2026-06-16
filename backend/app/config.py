@@ -38,15 +38,42 @@ class ApiConfig(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
 
+class LoggingConfig(BaseSettings):
+    level: str = "INFO"
+    format: str = "json"
+    log_dir: str = "logs"
+    file_enabled: bool = True
+    console_enabled: bool = True
+    max_file_mb: int = 10
+    backup_count: int = 5
+    log_prompt_preview: bool = False
+    prompt_preview_chars: int = 160
+    log_llm_output_preview: bool = False
+    llm_output_preview_chars: int = 160
+    raw_message_mode: str = "full"
+    raw_message_log_file: str = "logs/messages.log"
+    raw_message_max_chars: int = 20000
+    raw_message_include_player_messages: bool = True
+    raw_message_include_llm_prompts: bool = True
+    raw_message_include_llm_responses: bool = True
+    raw_message_include_parsed_outputs: bool = True
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gemma4:e4b"
+    log_level: str | None = None
     llm: LlmConfig = Field(default_factory=LlmConfig)
     puzzle: PuzzleConfig = Field(default_factory=PuzzleConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    @property
+    def effective_log_level(self) -> str:
+        return self.log_level or self.logging.level
 
 
 def _load_config_file() -> dict[str, object]:

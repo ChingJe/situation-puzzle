@@ -70,6 +70,13 @@ log_prompt_preview = false
 prompt_preview_chars = 160
 log_llm_output_preview = false
 llm_output_preview_chars = 160
+raw_message_mode = "full"
+raw_message_log_file = "logs/messages.log"
+raw_message_max_chars = 20000
+raw_message_include_player_messages = true
+raw_message_include_llm_prompts = true
+raw_message_include_llm_responses = true
+raw_message_include_parsed_outputs = true
 ```
 
 ## LLM 設定
@@ -113,5 +120,14 @@ llm_output_preview_chars = 160
 - `prompt_preview_chars`：prompt preview 最大字數。
 - `log_llm_output_preview`：是否記錄 LLM output preview，預設關閉。
 - `llm_output_preview_chars`：LLM output preview 最大字數。
+- `raw_message_mode`：raw message log 模式，`off | preview | full`，本機開發預設 `full`。
+- `raw_message_log_file`：raw message log 輸出檔案，預設 `logs/messages.log`。
+- `raw_message_max_chars`：raw message 單筆最大字數，超過時截斷。
+- `raw_message_include_player_messages`：是否記錄玩家 topic/question/solution。
+- `raw_message_include_llm_prompts`：是否記錄送給 LLM 的 system/human prompt。
+- `raw_message_include_llm_responses`：是否記錄 Ollama raw response。
+- `raw_message_include_parsed_outputs`：是否記錄 parsed structured output。
+
+`raw_message_mode = "full"` 會保存完整謎底、key facts、prompt 與模型輸出。此專案以本機開發觀測為主，因此這是可接受的預設；log 檔仍不得 commit。
 
 詳細設計見 `docs/logging-design.md`。

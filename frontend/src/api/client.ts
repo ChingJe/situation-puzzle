@@ -12,12 +12,14 @@ import type {
 export class ApiError extends Error {
   code: string;
   status: number;
+  requestId: string | null;
 
-  constructor(code: string, message: string, status: number) {
+  constructor(code: string, message: string, status: number, requestId: string | null) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
+    this.requestId = requestId;
   }
 }
 
@@ -29,15 +31,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {})
     }
   });
+  const requestId = response.headers.get("X-Request-ID");
   const payload = (await response.json().catch(() => null)) as T | ApiErrorBody | null;
   if (!response.ok) {
     const errorPayload = payload as ApiErrorBody | null;
+    console.warn("API request failed", {
+      path,
+      status: response.status,
+      code: errorPayload?.error?.code,
+      requestId
+    });
     throw new ApiError(
       errorPayload?.error?.code ?? "UNKNOWN_ERROR",
       errorPayload?.error?.message ?? "伺服器發生錯誤",
-      response.status
+      response.status,
+      requestId
     );
   }
+  console.debug("API request finished", {
+    path,
+    status: response.status,
+    requestId
+  });
   return payload as T;
 }
 

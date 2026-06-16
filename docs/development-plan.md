@@ -509,14 +509,17 @@
 - 新增 `.env` 的 `LOG_LEVEL` 覆蓋。
 - 實作 JSON lines formatter。
 - 實作 rotating file handler，預設輸出 `logs/app.log`。
+- 實作 raw message handler，本機開發預設 full，輸出 `logs/messages.log`。
 - 實作 request id middleware，response 回傳 `X-Request-ID`。
 - 使用 contextvars 讓同一 request 內 log 自動帶 `request_id`。
 - GameService 記錄 create、ask、invalid question、submit、abandon、finalize。
 - Graph workflow/node 記錄 node start/end/failure。
 - LLM client 記錄 task、model、retry、structured output validation failure、duration。
+- LLM client 可選擇記錄完整 system prompt、human prompt、Ollama raw response、parsed output。
+- GameService 可選擇記錄玩家 topic、question、solution raw message。
 - Storage 記錄 read/write/list 與 corrupt JSON skipped。
 - Health 記錄 Ollama/storage summary。
-- 確保 log 不包含完整 `truth`、`key_facts`、`forbidden_assumptions`。
+- structured event log 保持摘要化；完整 `truth`、`key_facts`、`forbidden_assumptions` 由 raw message log 保存。
 
 驗收標準：
 
@@ -525,7 +528,8 @@
 - Ollama unavailable、model not found、structured output failure 均有明確 log。
 - 無效問題記錄 `INVALID_QUESTION`，但不寫入正式問答紀錄。
 - storage 損壞 JSON 被跳過時有 warning log。
-- pytest 可驗證 log 不洩漏完整隱藏答案。
+- raw message 預設 full，可用 `request_id` 與 `llm_call_id` 查完整玩家輸入、agent prompt、Ollama response、parsed output。
+- pytest 可驗證 structured event log 仍維持摘要化，raw message log 則保留完整內容。
 - `uv run pytest` 通過。
 
 ## 建議實作順序摘要

@@ -4,11 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.errors import AppError, app_error_handler
 from app.health import get_health
+from app.logging_config import setup_logging
+from app.middleware import RequestLoggingMiddleware
 from app.routes import games_router, history_router
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    setup_logging(settings)
 
     fastapi_app = FastAPI(title="Situation Puzzle API")
 
@@ -19,6 +22,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    fastapi_app.add_middleware(RequestLoggingMiddleware)
 
     fastapi_app.add_exception_handler(AppError, app_error_handler)
     fastapi_app.include_router(games_router)

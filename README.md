@@ -121,6 +121,29 @@ data/games/{game_id}.json
 
 `data/games/*.json` 不進 git。
 
+## Logging
+
+後端使用 JSON lines structured logging。預設同時輸出到 console 與：
+
+```text
+logs/app.log
+```
+
+每個 HTTP request 會有 `X-Request-ID`，後端 log 也會帶 `request_id`。建立遊戲後，相關事件會帶 `game_id`，可用 `rg` 或 `jq` 查詢：
+
+```bash
+rg '"request_id":"req_..."' logs/app.log
+rg '"game_id":"..."' logs/app.log
+```
+
+本機 log level 可在 `.env` 調整：
+
+```env
+LOG_LEVEL=INFO
+```
+
+預設不記錄完整 `truth`、`key_facts`、`forbidden_assumptions`。詳細設計見 `docs/logging-design.md`。
+
 ## API 摘要
 
 - `GET /api/health`

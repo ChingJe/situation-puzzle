@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from enum import StrEnum
+import logging
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+from app.observability import log_event
+
+
+logger = logging.getLogger("app.errors")
 
 
 class ApiErrorCode(StrEnum):
@@ -57,4 +63,11 @@ def error_response(error: AppError) -> JSONResponse:
 
 
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+    log_event(
+        logger,
+        "api.error",
+        level=logging.WARNING if exc.status_code < 500 else logging.ERROR,
+        error_code=exc.code.value,
+        status_code=exc.status_code,
+    )
     return error_response(exc)
