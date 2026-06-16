@@ -1,5 +1,5 @@
 [llm]
-request_timeout_seconds = 120
+request_timeout_seconds = 600
 request_max_retries = 2
 structured_output_max_retries = 2
 generation_temperature = 0.8

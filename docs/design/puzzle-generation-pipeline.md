@@ -49,7 +49,7 @@
 
 題目生成是每局開始前的一次性流程。若模型需要較長時間才能產生高品質題目，目前接受此成本：
 
-- 主要生成模型建議使用 `qwen3.6-35b-a3b`，透過 llama.cpp OpenAI-compatible API 呼叫。
+- 預設生成模型使用 `qwen3.6-35b-a3b`，透過 llama.cpp OpenAI-compatible API 呼叫。
 - `request_timeout_seconds` 建議提高到至少 `600` 秒。
 - OpenAI-compatible request 不應預設限制 `max_tokens`；Qwen reasoning 可能消耗大量 token，限制過低會截斷 JSON content。
 - `gemma4:e4b` 可保留作為 fallback 或輕量判定任務候選，但不應作為短主題題目生成品質的主要依據。
@@ -436,7 +436,7 @@ Raw message log 應保存每次中間 draft、reviewer issues 與 revision instr
 - 第一次 reviewer 失敗，指定重寫 `generate_core_truth`，後續節點全部重跑。
 - structured output retry 與 reviewer revision round 彼此獨立。
 
-### 真實 Ollama 人工驗收
+### 真實 LLM Provider 人工驗收
 
 至少使用下列主題：
 
@@ -462,7 +462,7 @@ Raw message log 應保存每次中間 draft、reviewer issues 與 revision instr
 4. 實作 LangGraph 節點與 revision routing。
 5. 更新 fake LLM 測試。
 6. 補 reviewer prompt 與節點 log。
-7. 用真實 Ollama 跑人工驗收並微調 prompt。
+7. 用真實 selected LLM provider 跑人工驗收並微調 prompt。
 
 ## 與既有流程的關係
 

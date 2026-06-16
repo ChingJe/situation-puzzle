@@ -7,9 +7,9 @@
 - API request 是否進入正確 endpoint。
 - GameService 狀態轉移是否符合預期。
 - LangGraph 節點是否被執行，以及執行順序與耗時。
-- Ollama request 是否送出、是否 timeout、structured output 是否重試。
+- LLM provider request 是否送出、是否 timeout、structured output 是否重試。
 - storage 是否成功寫入或讀取歷史紀錄。
-- WSL、Windows Ollama、模型設定等環境問題發生在哪一層。
+- WSL、Windows 端 LLM runtime、模型設定等環境問題發生在哪一層。
 
 本文件定義第一版 logging 設計，目標是讓本地開發時可以快速定位問題。此專案假設後端 log 是開發者觀測工具，不把「玩家主動翻 log 看到答案」視為需要防範的主要情境。
 
@@ -20,7 +20,7 @@
 - 每個 API request 有 `request_id`，每局遊戲有 `game_id`，每次 LLM 呼叫有 `llm_call_id`。
 - 能觀察 agent 工作流程：graph node start/end、LLM task、retry、validation error、耗時。
 - structured event log 以事件摘要、狀態、耗時為主，避免太吵。
-- raw message log 可以完整保存玩家 request、LLM prompt、Ollama raw response 與 parsed output，作為本機除錯主要依據。
+- raw message log 可以完整保存玩家 request、LLM prompt、provider raw response 與 parsed output，作為本機除錯主要依據。
 - 前端顯示一般錯誤訊息即可，詳細除錯資訊留在後端 log。
 
 ## 非目標
@@ -111,7 +111,7 @@
 - invalid question。
 - structured output 第一次失敗後 retry。
 - history 中發現損壞 JSON 並跳過。
-- Ollama model not found，health degraded。
+- selected LLM model not found，health degraded。
 
 ### ERROR
 
@@ -377,7 +377,7 @@ level：ERROR
 第一版將 log 分成兩種：
 
 - structured event log：預設開啟，寫入 `logs/app.log`，記錄事件、狀態、耗時、長度摘要，不寫完整內容。
-- raw message log：寫入 `logs/messages.log`，可記錄完整玩家輸入、agent prompt、Ollama raw response、parsed structured output。
+- raw message log：寫入 `logs/messages.log`，可記錄完整玩家輸入、agent prompt、LLM provider raw response、parsed structured output。
 
 structured event log 不記完整 prompt 或 raw output，完整內容統一進 raw message log。
 
@@ -420,11 +420,11 @@ structured event log 不記錄：
 - key facts 列表內容。
 - forbidden assumptions 內容。
 
-上述規則只適用於 structured event log。raw message log 可以保存這些內容，因為生成題目與判定流程需要看到完整 agent/Ollama 互動才能除錯。
+上述規則只適用於 structured event log。raw message log 可以保存這些內容，因為生成題目與判定流程需要看到完整 agent/LLM provider 互動才能除錯。
 
 ## Raw Message Log
 
-raw message log 用於觀察「玩家輸入 -> agent prompt -> Ollama raw response -> parsed output」的完整資料流。這類 log 對調整 prompt、debug structured output、判斷模型是否照規則回答非常重要，因此應完整保存足夠資訊。
+raw message log 用於觀察「玩家輸入 -> agent prompt -> LLM provider raw response -> parsed output」的完整資料流。這類 log 對調整 prompt、debug structured output、判斷模型是否照規則回答非常重要，因此應完整保存足夠資訊。
 
 ### 基本規則
 
@@ -450,7 +450,7 @@ full
 
 - `off`：不記 raw message，僅在需要減少磁碟輸出或正式部署時使用。
 - `preview`：記錄截斷內容，方便看大致輸入輸出，但不保存完整謎底。
-- `full`：記錄完整內容，包含 hidden puzzle data、完整 prompt、Ollama raw response 與 parsed output。
+- `full`：記錄完整內容，包含 hidden puzzle data、完整 prompt、LLM provider raw response 與 parsed output。
 
 本機開發預設建議使用 `full`。若未來有部署環境，再把部署環境預設改為 `off` 或 `preview`。
 
@@ -640,21 +640,22 @@ Storage layer 應記錄：
 Health check 應記錄：
 
 - `health.checked`
-- `health.ollama.unavailable`
+- `health.llm.unavailable`
 - `health.storage.unavailable`
 
 欄位：
 
 - `overall_status`
-- `ollama_status`
-- `ollama_model`
-- `ollama_model_available`
+- `llm_provider`
+- `llm_status`
+- `llm_model`
+- `llm_model_available`
 - `storage_status`
 - `storage_writable`
 
-WSL + Windows Ollama 特別需要看：
+WSL + Windows 端 LLM runtime 特別需要看：
 
-- `ollama_base_url_host`
+- `llm_base_url_host`
 - model name
 - connection error message
 
@@ -766,7 +767,7 @@ logs/app.log
 logs/messages.log
 ```
 
-`logs/app.log` 用於查事件與耗時；`logs/messages.log` 用於查完整玩家 request、agent prompt、Ollama response 與 parsed output。
+`logs/app.log` 用於查事件與耗時；`logs/messages.log` 用於查完整玩家 request、agent prompt、LLM provider response 與 parsed output。
 
 rotation：
 
@@ -836,7 +837,7 @@ backend/app/observability.py
 - structured event log 不包含 `truth`、`key_facts` 內容。
 - raw message 本機開發預設開啟。
 - raw message `preview` 模式會截斷內容。
-- raw message `full` 模式可記錄完整玩家輸入、LLM prompt、Ollama output 與 parsed output。
+- raw message `full` 模式可記錄完整玩家輸入、LLM prompt、provider output 與 parsed output。
 
 測試工具：
 
@@ -869,7 +870,7 @@ make dev-backend
 8. 檢查 `logs/messages.log`：
    - 能以同一個 `request_id` 串起玩家輸入與 LLM 呼叫。
    - 能以同一個 `llm_call_id` 找到 prompt、raw response、parsed output。
-   - 能看到完整 Ollama 回覆，用於 debug structured output。
+   - 能看到完整 LLM provider 回覆，用於 debug structured output。
 
 範例查詢：
 

@@ -12,7 +12,7 @@
 - LangGraph：遊戲流程與狀態轉移
 - LangChain + LLM provider adapter：LLM API 呼叫與 structured output
 - Ollama / llama.cpp OpenAI-compatible API：本地 LLM runtime
-- 生成模型目標：`qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API
+- 預設生成模型：`qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API
 - 輕量判定模型可選：`gemma4:e4b` via Ollama
 - React + Vite + TypeScript：前端互動介面
 - JSON 檔案：結束後遊戲紀錄儲存
@@ -132,9 +132,28 @@ situation-puzzle/
 
 第二輪 contract prompt 測試顯示，`gemma4:e4b` 在短主題題目生成上容易產生店務流程、專業制度、抽象保密動機或不可判定核心。相同 prompt contract 改用 llama.cpp 部署的 `qwen3.6-35b-a3b` 後，`便利商店` 測試可產生明確、可問答、可判定的日常人物行為異常題目。
 
+因此後續正式預設 runtime 決定為 `llama.cpp OpenAI-compatible API + qwen3.6-35b-a3b`。Ollama 不再是預設生成 runtime，但保留為可切換 provider，適合快速測試、輕量判定或 fallback。
+
 目前接受的 tradeoff：
 
 - 題目生成屬於開局前一次性成本，約 10 分鐘生成時間可接受。
 - 優先確保題目品質、可玩性與勝負判定穩定性，而不是追求快速生成。
-- 後續正式架構應支援 OpenAI-compatible provider 與較長 request timeout。
+- 後續正式架構應以 OpenAI-compatible provider 作為預設，並支援較長 request timeout。
 - `gemma4:e4b` 可保留作為較輕量任務或 fallback 測試對象，但不再視為題目生成品質的主要基準。
+
+## LLM Provider Adapter
+
+正式後端不得把遊戲流程綁死在 Ollama client。`backend/app/llm/client.py` 應提供共同的 `LlmClient` 介面與 provider factory：
+
+- `OllamaLlmClient`：使用 Ollama API，適合較輕量模型或本機快速測試。
+- `OpenAICompatibleLlmClient`：使用 OpenAI-compatible `/v1/chat/completions`，目標支援 llama.cpp server 與 `qwen3.6-35b-a3b`。
+- `FakeLlmClient`：測試專用，不呼叫外部 runtime。
+
+Provider factory 根據 `LLM_PROVIDER` 建立正式 client。Graph、service 與 API layer 只依賴 `LlmClient` protocol，不直接讀取 provider-specific 設定。
+
+OpenAI-compatible provider 的 structured output 規則：
+
+- request body 使用 `messages` 與 `response_format={"type":"json_object"}`。
+- 若模型回傳 reasoning 欄位，例如 `reasoning_content`，只將 `message.content` 視為 JSON 內容來源。
+- `openai_compatible_max_tokens = 0` 表示不傳 `max_tokens`；Qwen 測試顯示限制過低會讓 reasoning 消耗輸出額度並截斷 JSON。
+- timeout 應允許長題目生成，建議 `request_timeout_seconds = 600`。

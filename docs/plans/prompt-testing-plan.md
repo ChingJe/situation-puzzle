@@ -2,7 +2,9 @@
 
 ## 目標
 
-在不立刻修改正式遊戲流程的前提下，使用本機 Ollama API 逐步測試與迭代 prompt，最終得到一組穩定可用的 prompt，讓 AI 能產生具備明確真相、可推理謎面、可判定 key facts 的海龜湯題目，並能支撐後續問答與解答判定流程。
+在不立刻修改正式遊戲流程的前提下，使用本機 LLM runtime 逐步測試與迭代 prompt，最終得到一組穩定可用的 prompt，讓 AI 能產生具備明確真相、可推理謎面、可判定 key facts 的海龜湯題目，並能支撐後續問答與解答判定流程。
+
+可用 runtime 包含 Ollama API 與 llama.cpp OpenAI-compatible API。測試結論若涉及 provider 行為，需回饋到正式後端 provider adapter 設計，而不是只保留在 prompt lab 工具中。
 
 此計畫回應 `docs/issue/puzzle-generation-quality.md` 中記錄的問題：目前 `generate_puzzle` 可能產生抽象氛圍文字，而不是可玩的海龜湯題目。
 
@@ -16,13 +18,12 @@
 
 ## 測試前置條件
 
-- 使用者在 Windows 端啟動 Ollama。
-- WSL 端可透過 Windows gateway IP 呼叫 Ollama API。
-- `.env` 中 `OLLAMA_BASE_URL` 指向可用的 Ollama endpoint。
-- `.env` 中 `OLLAMA_MODEL=gemma4:e4b`，除非測試中明確比較其他模型。
-- 若測試 llama.cpp，Windows 端需啟動 OpenAI-compatible API，例如 `http://<windows-gateway-ip>:18080/v1`。
+- 使用者在 Windows 端啟動目標 LLM runtime。
+- WSL 端可透過 Windows gateway IP 呼叫 runtime API。
+- 測試 Ollama 時，`.env` 中 `OLLAMA_BASE_URL` 指向可用的 Ollama endpoint，且 `.env` 中 `OLLAMA_MODEL=gemma4:e4b`，除非測試中明確比較其他模型。
+- 測試 llama.cpp 時，Windows 端需啟動 OpenAI-compatible API，例如 `http://<windows-gateway-ip>:18080/v1`，且 `/v1/models` 可看到目標模型。
 - `qwen3.6-35b-a3b` 目前作為主要生成模型候選；完整 pipeline timeout 建議至少 `600` 秒。
-- 後端與前端可依 README 啟動，但 prompt 原型測試可先用直接呼叫 Ollama 或後端 LLM client 的方式進行。
+- 後端與前端可依 README 啟動，但 prompt 原型測試可先用直接呼叫 runtime API 或後端 LLM client 的方式進行。
 - `logs/messages.log` 保持開啟 raw message logging，以便保存 prompt、raw response 與 parsed output。
 
 ## 主要產出
@@ -543,9 +544,9 @@ final_pipeline_status：
 目前決策：
 
 - 接受約 10 分鐘開局生成時間作為合理 tradeoff。
-- 主要生成模型改以 `qwen3.6-35b-a3b` 為基準。
+- 主要生成模型與後續正式預設改以 `qwen3.6-35b-a3b` 為基準。
 - `gemma4:e4b` 保留為輕量任務、fallback 或對照測試，不再作為題目生成品質主要基準。
-- OpenAI-compatible provider 支援應納入後續實作任務。
+- OpenAI-compatible provider 支援應納入後續正式後端實作任務，不能只停留在 prompt lab。
 
 ### 第三輪後續驗收方式
 
@@ -564,6 +565,13 @@ final_pipeline_status：
    - reviewer 是否未漏判明顯不可玩題目。
 
 Qwen 測試中不應設定過低 `max_tokens`。若 llama.cpp 回傳包含 `reasoning_content`，解析時應只使用 `message.content` 作為 JSON 內容來源。
+
+這項結論應回饋到 `docs/plans/development-plan.md` 的正式 provider adapter 階段：
+
+- `.env` 需要 `LLM_PROVIDER=openai-compatible`、`OPENAI_COMPATIBLE_BASE_URL`、`OPENAI_COMPATIBLE_MODEL`。
+- `config.toml` 需要 `openai_compatible_max_tokens = 0` 或足夠高的可調設定。
+- `request_timeout_seconds` 需要足以涵蓋 Qwen 長生成，建議至少 600 秒。
+- 正式後端 health、logging、raw message log 都應使用通用 LLM provider 欄位，而不是寫死 Ollama。
 
 ## 測試紀錄格式
 

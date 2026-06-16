@@ -37,7 +37,15 @@ OPENAI_COMPATIBLE_MODEL=qwen3.6-35b-a3b
 - `OPENAI_COMPATIBLE_BASE_URL`：OpenAI-compatible API base URL，例如 llama.cpp server 的 `/v1` endpoint。
 - `OPENAI_COMPATIBLE_MODEL`：OpenAI-compatible API 使用的模型名稱。
 
-目前題目生成建議使用 `openai-compatible + qwen3.6-35b-a3b`。WSL 連線 Windows 端 llama.cpp 時，`OPENAI_COMPATIBLE_BASE_URL` 通常需使用 Windows gateway IP，例如 `http://192.168.192.1:18080/v1`，不可假設 `localhost` 一定可用。
+預設題目生成 runtime 為 `openai-compatible + qwen3.6-35b-a3b`。WSL 連線 Windows 端 llama.cpp 時，`OPENAI_COMPATIBLE_BASE_URL` 通常需使用 Windows gateway IP，例如 `http://192.168.192.1:18080/v1`，不可假設 `localhost` 一定可用。
+
+Provider 選擇規則：
+
+- `LLM_PROVIDER=ollama` 時，後端只使用 `OLLAMA_BASE_URL` 與 `OLLAMA_MODEL`。
+- `LLM_PROVIDER=openai-compatible` 時，後端只使用 `OPENAI_COMPATIBLE_BASE_URL` 與 `OPENAI_COMPATIBLE_MODEL`。
+- 未選中的 provider 設定可以保留在 `.env` 中，方便切換，但 health check 與正式遊戲流程只檢查目前選中的 provider。
+- 後端啟動時不因 provider unavailable 直接失敗；建立遊戲、提問或判定解答時若 provider 不可用，才回傳 `LLM_UNAVAILABLE`。
+- `.env.example` 應以 `LLM_PROVIDER=openai-compatible` 作為預設範例，Ollama 欄位則作為保留的替代 runtime 設定。
 
 ## `config.toml`
 
@@ -109,6 +117,7 @@ raw_message_include_parsed_outputs = true
 題目生成速度與品質的目前決策：
 
 - `qwen3.6-35b-a3b` 完整 pipeline 約 10 分鐘，但可產生較合理、可玩的核心題目。
+- 此模型與 llama.cpp OpenAI-compatible API 是後續正式預設。
 - 此速度在目前產品定位中可接受，因為生成發生在開局前，且品質比即時性更重要。
 - UI/API 後續可考慮顯示生成中狀態，但不應為了縮短生成時間犧牲題目品質。
 
@@ -162,7 +171,7 @@ raw_message_include_parsed_outputs = true
 - `raw_message_max_chars`：raw message 單筆最大字數，超過時截斷。
 - `raw_message_include_player_messages`：是否記錄玩家 topic/question/solution。
 - `raw_message_include_llm_prompts`：是否記錄送給 LLM 的 system/human prompt。
-- `raw_message_include_llm_responses`：是否記錄 Ollama raw response。
+- `raw_message_include_llm_responses`：是否記錄 LLM provider raw response。
 - `raw_message_include_parsed_outputs`：是否記錄 parsed structured output。
 
 `raw_message_mode = "full"` 會保存完整謎底、key facts、prompt 與模型輸出。此專案以本機開發觀測為主，因此這是可接受的預設；log 檔仍不得 commit。

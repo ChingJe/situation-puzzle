@@ -7,7 +7,7 @@
 ## 開發原則
 
 - 先完成後端核心資料模型與狀態轉移，再接上真實 LLM。
-- LLM 相關測試以 fake/stub 為主，不依賴本機 Ollama。
+- LLM 相關測試以 fake/stub 為主，不依賴本機 Ollama 或 llama.cpp。
 - API response 不得在進行中遊戲洩漏 `truth`、`key_facts`、`forbidden_assumptions`。
 - 每個階段完成後至少執行 `uv run pytest`；牽涉前端時執行 `npm run build`。
 - JSON 儲存只保存已結束遊戲，進行中遊戲存在後端記憶體。
@@ -87,7 +87,7 @@
 
 目標：
 
-讓後端正確載入 `.env`、環境變數與 `config.toml`，並完整檢查 Ollama 與 storage 狀態。
+讓後端正確載入 `.env`、環境變數與 `config.toml`，並完整檢查目前選定 LLM provider 與 storage 狀態。
 
 主要檔案：
 
@@ -105,20 +105,21 @@
   2. `.env`
   3. 系統環境變數覆蓋
 - 實作 storage writable check。
-- 實作 Ollama health check：
-  - base URL 是否可連線。
-  - configured model 是否存在。
+- 實作 LLM provider health check：
+  - `LLM_PROVIDER=ollama` 時，檢查 Ollama base URL 是否可連線，以及 configured model 是否存在。
+  - `LLM_PROVIDER=openai-compatible` 時，檢查 `/v1/models` 或等效 endpoint 是否可連線，以及 configured model 是否存在。
+  - 未選中的 provider 不影響 health 結果。
 - `GET /api/health` 回傳 `ok` 或 `degraded`。
 
 模組交界：
 
 - `config.py` 不依賴 FastAPI。
 - health check 可呼叫 storage/llm 的輕量檢查方法，但不得觸發題目生成。
-- Ollama 不可用時，後端仍可啟動。
+- LLM runtime 不可用時，後端仍可啟動。
 
 驗收標準：
 
-- 沒有 Ollama 時，health 回傳 `degraded`，API 仍可啟動。
+- 選定 provider 不可用時，health 回傳 `degraded`，API 仍可啟動。
 - storage 目錄不存在時可建立，或回報明確錯誤。
 - 環境變數可覆蓋 `.env`。
 - `uv run pytest` 通過。
@@ -161,7 +162,7 @@
 
 目標：
 
-建立真實 Ollama client 與測試用 fake client 的一致介面，並封裝 structured output retry。題目生成應支援多節點 pipeline，而不是只提供單一 `generate_puzzle` 呼叫。
+建立真實 LLM provider client 與測試用 fake client 的一致介面，並封裝 structured output retry。題目生成應支援多節點 pipeline，而不是只提供單一 `generate_puzzle` 呼叫。
 
 主要檔案：
 
@@ -171,7 +172,12 @@
 
 實作內容：
 
-- 使用 `ChatOllama.with_structured_output(...)`。
+- 建立 `LlmClient` protocol，Graph 與 Service 只依賴此介面。
+- 建立 provider factory，依 `LLM_PROVIDER` 建立對應 client。
+- `OllamaLlmClient` 使用 `ChatOllama.with_structured_output(...)`。
+- `OpenAICompatibleLlmClient` 呼叫 `/v1/chat/completions`，用 `response_format={"type":"json_object"}` 搭配 Pydantic schema 驗證。
+- `OpenAICompatibleLlmClient` 解析時只使用 `message.content` 作為 JSON 內容，不把 reasoning 欄位混入 parsed output。
+- `openai_compatible_max_tokens = 0` 時不送出 `max_tokens`。
 - 分別建立遊戲所需任務：
   - `interpret_topic`
   - `generate_core_truth`
@@ -190,6 +196,7 @@
 模組交界：
 
 - LLM client 回傳 Pydantic schema，不回傳 raw JSON 字串。
+- provider-specific request/response 格式不得洩漏到 Graph node。
 - Graph node 不處理 JSON 修復細節。
 - Service 測試預設注入 fake LLM。
 
@@ -198,6 +205,8 @@
 - structured output 第一次失敗、第二次成功時可通過。
 - retry 用盡時轉成 `LLM_OUTPUT_INVALID`。
 - 連線錯誤轉成 `LLM_UNAVAILABLE`。
+- provider factory 可依 `ollama` 與 `openai-compatible` 建立正確 client。
+- OpenAI-compatible raw response 有 `reasoning_content` 時，仍只解析 `message.content`。
 - 題目生成各 draft schema 包含必要欄位，並可組成正式 `Puzzle`。
 - `uv run pytest` 通過。
 
@@ -322,7 +331,7 @@
 - 所有 API response 符合 `docs/design/api-design.md`。
 - 錯誤 response 一律符合統一格式。
 - 遊戲進行中 API 不洩漏 `truth` 等隱藏欄位。
-- API 測試使用 fake LLM，不依賴 Ollama。
+- API 測試使用 fake LLM，不依賴本機 LLM runtime。
 - `uv run pytest` 通過。
 
 ## 階段 8：前端 API Client 與狀態模型
@@ -432,22 +441,24 @@
 - 損壞或讀取失敗時顯示 API 錯誤。
 - `npm run build` 通過。
 
-## 階段 11：整合 Ollama 與人工驗收
+## 階段 11：整合 LLM Runtime 與人工驗收
 
 目標：
 
-用真實 `gemma4:e4b` 跑完整遊戲流程，調整 prompts 與 retry 設定。
+用真實本機 LLM runtime 跑完整遊戲流程，調整 prompts、provider 設定與 retry 設定。
 
 前置條件：
 
-- 本機 Ollama 已啟動。
-- 已安裝 `gemma4:e4b`。
-- `.env` 設定正確。
+- 至少啟動一個本機 LLM runtime：
+  - Ollama + `gemma4:e4b`。
+  - 或 llama.cpp OpenAI-compatible server + `qwen3.6-35b-a3b`。
+- `.env` 的 `LLM_PROVIDER`、base URL 與 model 設定正確。
+- 若在 WSL 連 Windows 端 runtime，base URL 使用 Windows gateway IP，而不是假設 `localhost`。
 
 驗收流程：
 
 1. 開啟後端與前端。
-2. 檢查 `/api/health` 顯示 Ollama available。
+2. 檢查 `/api/health` 顯示 selected LLM provider available。
 3. 用中文主題建立新遊戲。
 4. 確認謎面不超過設定字數，且未暴露真相。
 5. 提問有效是非題，確認只回「是」「否」「無關」。
@@ -463,10 +474,12 @@
 - 若問答常誤判，補強 `forbidden_assumptions` 與 answer prompt。
 - 若解答判定過寬或過嚴，調整 judge prompt。
 - 若 structured output 不穩，調整 schema 描述與 retry 次數。
+- 若 Qwen 透過 llama.cpp 生成時被截斷，確認 `openai_compatible_max_tokens = 0` 或足夠高，且 request timeout 至少 600 秒。
 
 驗收標準：
 
 - 至少完成 3 局不同主題人工測試。
+- 至少用 `openai-compatible + qwen3.6-35b-a3b` 完成 1 局題目生成與遊戲流程。
 - 每局都能建立、提問、提交或放棄、保存、讀歷史。
 - `uv run pytest` 通過。
 - `npm run build` 通過。
@@ -489,7 +502,8 @@
 
 - 補 README：
   - Python/Node 版本需求。
-  - Ollama 安裝與模型準備。
+  - LLM runtime 安裝與模型準備。
+  - Ollama 與 llama.cpp OpenAI-compatible endpoint 的 `.env` 範例。
   - `.env` 設定。
   - 後端/前端啟動方式。
   - 測試命令。
@@ -533,20 +547,20 @@
 - GameService 記錄 create、ask、invalid question、submit、abandon、finalize。
 - Graph workflow/node 記錄 node start/end/failure。
 - LLM client 記錄 task、model、retry、structured output validation failure、duration。
-- LLM client 可選擇記錄完整 system prompt、human prompt、Ollama raw response、parsed output。
+- LLM client 可選擇記錄完整 system prompt、human prompt、provider raw response、parsed output。
 - GameService 可選擇記錄玩家 topic、question、solution raw message。
 - Storage 記錄 read/write/list 與 corrupt JSON skipped。
-- Health 記錄 Ollama/storage summary。
+- Health 記錄 selected LLM provider/storage summary。
 - structured event log 保持摘要化；完整 `truth`、`key_facts`、`forbidden_assumptions` 由 raw message log 保存。
 
 驗收標準：
 
 - `POST /api/games` 可在 log 中用同一個 `request_id` 串起 route、service、graph、LLM 事件。
 - 同一局可用 `game_id` 查到所有 game lifecycle 事件。
-- Ollama unavailable、model not found、structured output failure 均有明確 log。
+- selected LLM provider unavailable、model not found、structured output failure 均有明確 log。
 - 無效問題記錄 `INVALID_QUESTION`，但不寫入正式問答紀錄。
 - storage 損壞 JSON 被跳過時有 warning log。
-- raw message 預設 full，可用 `request_id` 與 `llm_call_id` 查完整玩家輸入、agent prompt、Ollama response、parsed output。
+- raw message 預設 full，可用 `request_id` 與 `llm_call_id` 查完整玩家輸入、agent prompt、provider response、parsed output。
 - pytest 可驗證 structured event log 仍維持摘要化，raw message log 則保留完整內容。
 - `uv run pytest` 通過。
 
@@ -623,7 +637,67 @@
 - deterministic gate 可阻擋過長謎面與空 key facts。
 - revision 超過上限時回 `LLM_OUTPUT_INVALID`。
 - 進行中遊戲 API 仍不洩漏 `truth`、`key_facts`、`forbidden_assumptions`。
-- 以真實 Ollama 人工測試 `便利商店` 與 `當兵期間操課`，不應再出現謎面客觀事實被 truth 否定的題目。
+- 以真實 selected LLM provider 人工測試 `便利商店` 與 `當兵期間操課`，不應再出現謎面客觀事實被 truth 否定的題目。
+- `uv run pytest` 通過。
+
+## 階段 15：正式支援 llama.cpp OpenAI-compatible Provider
+
+目標：
+
+把 prompt lab 已驗證的 llama.cpp + Qwen 呼叫方式接入正式後端，讓正式遊戲流程預設使用 OpenAI-compatible provider，並仍可透過設定切換到 Ollama。
+
+主要檔案：
+
+- `backend/app/config.py`
+- `backend/app/dependencies.py`
+- `backend/app/health.py`
+- `backend/app/llm/client.py`
+- `backend/app/llm/__init__.py`
+- `backend/tests/test_config.py`
+- `backend/tests/test_health.py`
+- `backend/tests/test_llm_client.py`
+- `.env.example`
+- `config.toml`
+- `README.md`
+
+實作內容：
+
+- 新增 `.env` 設定：
+  - `LLM_PROVIDER=ollama | openai-compatible`，預設範例使用 `openai-compatible`
+  - `OPENAI_COMPATIBLE_BASE_URL`
+  - `OPENAI_COMPATIBLE_MODEL`
+- 新增 `[llm] openai_compatible_max_tokens`，`0` 表示不傳 `max_tokens`。
+- 將 `request_timeout_seconds` 建議值調整為可支援 Qwen 長生成，預設或範例使用 `600`。
+- 建立 `OpenAICompatibleLlmClient`，支援：
+  - `/v1/chat/completions`
+  - `response_format={"type":"json_object"}`
+  - request retry
+  - structured output retry
+  - raw message logging
+  - `message.content` JSON parsing
+- 建立 provider factory，讓 dependency injection 依 `LLM_PROVIDER` 回傳 `OllamaLlmClient` 或 `OpenAICompatibleLlmClient`。
+- 更新 health check：
+  - response 使用 `llm` 區塊。
+  - log 欄位使用 `llm_provider`、`llm_model`、`llm_base_url_host`。
+  - 只檢查目前選定 provider。
+- 更新錯誤訊息，避免 API 與 log 固定寫死 Ollama。
+- 修正 README，明確說明 Ollama 與 llama.cpp 都是可選 runtime。
+- `.env.example` 以 llama.cpp + Qwen 作為預設範例，保留 Ollama 欄位方便切換。
+
+模組交界：
+
+- `GameService`、LangGraph nodes、API routes 不知道目前使用哪個 provider。
+- provider-specific health、request body、response parsing 都封裝在 LLM layer。
+- Fake LLM 不受 provider factory 影響，測試仍可直接注入。
+
+驗收標準：
+
+- `LLM_PROVIDER=ollama` 時，既有 Ollama 流程仍可使用。
+- `LLM_PROVIDER=openai-compatible` 時，後端可連到 llama.cpp `/v1` endpoint。
+- 未明確指定 provider 的新開發環境，應按照 README 與 `.env.example` 使用 llama.cpp + Qwen。
+- Qwen raw response 若含 reasoning 欄位，不會破壞 structured output parsing。
+- `/api/health` 能正確呈現 selected provider 狀態。
+- `POST /api/games` 可使用 llama.cpp + Qwen 完成至少一局生成。
 - `uv run pytest` 通過。
 
 ## 建議實作順序摘要
@@ -637,10 +711,11 @@
 7. 前端 API client 與狀態。
 8. 目前遊戲 UI。
 9. 歷史紀錄 UI。
-10. 真實 Ollama 整合與 prompt 調整。
+10. 真實 LLM runtime 整合與 prompt 調整。
 11. Logging 與可觀察性。
 12. 題目生成 pipeline 重構。
-13. README 與文件整理。
+13. 正式支援 llama.cpp OpenAI-compatible provider。
+14. README 與文件整理。
 
 ## 每階段完成定義
 

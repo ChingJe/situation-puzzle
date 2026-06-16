@@ -24,7 +24,7 @@
 - `GAME_NOT_FOUND`：找不到遊戲。
 - `GAME_ALREADY_ENDED`：遊戲已結束，不能繼續操作。
 - `INVALID_QUESTION`：玩家輸入不是可用是／否回答的問題。
-- `LLM_UNAVAILABLE`：Ollama 或模型不可用。
+- `LLM_UNAVAILABLE`：目前選定的 LLM provider、runtime 或模型不可用。
 - `LLM_OUTPUT_INVALID`：模型輸出無法通過 structured output 驗證。
 - `STORAGE_ERROR`：JSON 紀錄讀寫失敗。
 
@@ -32,7 +32,12 @@
 
 ### `GET /api/health`
 
-檢查後端、Ollama、模型與儲存目錄狀態。Ollama 不可用時不阻止後端啟動，但狀態應回傳 `degraded`。
+檢查後端、目前選定的 LLM provider、模型與儲存目錄狀態。LLM runtime 不可用時不阻止後端啟動，但狀態應回傳 `degraded`。
+
+LLM health response 使用通用 `llm` 區塊，避免 API schema 綁死在單一 runtime。第一版正式支援的 provider：
+
+- `ollama`：呼叫 Ollama API，例如 `http://localhost:11434`。
+- `openai-compatible`：呼叫 OpenAI-compatible API，例如 llama.cpp server 的 `http://<host>:18080/v1`。
 
 成功範例：
 
@@ -42,10 +47,11 @@
   "backend": {
     "status": "ok"
   },
-  "ollama": {
+  "llm": {
     "status": "ok",
-    "base_url": "http://localhost:11434",
-    "model": "gemma4:e4b",
+    "provider": "openai-compatible",
+    "base_url": "http://192.168.192.1:18080/v1",
+    "model": "qwen3.6-35b-a3b",
     "model_available": true
   },
   "storage": {
@@ -64,10 +70,11 @@
   "backend": {
     "status": "ok"
   },
-  "ollama": {
+  "llm": {
     "status": "unavailable",
-    "base_url": "http://localhost:11434",
-    "model": "gemma4:e4b",
+    "provider": "openai-compatible",
+    "base_url": "http://192.168.192.1:18080/v1",
+    "model": "qwen3.6-35b-a3b",
     "model_available": false,
     "error": "connection refused"
   },

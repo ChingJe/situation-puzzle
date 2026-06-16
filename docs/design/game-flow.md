@@ -147,7 +147,14 @@ abandon -> status=abandoned -> finalize_game -> response(truth)
 
 ## Structured Output 策略
 
-使用 LangChain `ChatOllama.with_structured_output(...)` 搭配 Pydantic schema。
+透過後端 LLM provider adapter 搭配 Pydantic schema 驗證。
+
+Provider 策略：
+
+- `ollama`：可使用 LangChain `ChatOllama.with_structured_output(...)`。
+- `openai-compatible`：可呼叫 `/v1/chat/completions`，使用 `response_format={"type":"json_object"}`，再由後端以 Pydantic schema 驗證與轉型。
+
+正式 graph node 只依賴 `LlmClient` 介面，不直接依賴 Ollama 或 llama.cpp 實作。
 
 設計原則：
 
@@ -160,6 +167,6 @@ abandon -> status=abandoned -> finalize_game -> response(truth)
 
 ## Retry 分層
 
-- Request retry：Ollama API timeout、連線錯誤、5xx 類錯誤。
+- Request retry：LLM provider API timeout、連線錯誤、5xx 類錯誤。
 - Structured output retry：模型有回應，但無法解析或不符合 schema。
 - Puzzle revision retry：reviewer 或 deterministic gate 判定內容不合格，回到指定生成節點重寫。

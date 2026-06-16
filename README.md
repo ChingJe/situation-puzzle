@@ -1,6 +1,6 @@
 # Situation Puzzle
 
-單人海龜湯遊戲專案。玩家輸入主題後，由 Ollama 模型生成謎面與隱藏真相；玩家透過是非題提問，最後提交解答。
+單人海龜湯遊戲專案。玩家輸入主題後，由本機 LLM runtime 生成謎面與隱藏真相；玩家透過是非題提問，最後提交解答。
 
 ## 需求
 
@@ -8,8 +8,9 @@
 - uv
 - Node.js 18.19+（目前使用 Vite 6，以相容本機 Node 18）
 - npm
-- Ollama
-- Ollama 模型：`gemma4:e4b`
+- llama.cpp OpenAI-compatible server
+- 預設生成模型：`qwen3.6-35b-a3b`
+- Ollama 與 `gemma4:e4b` 可作為輕量測試或 fallback runtime
 
 ## 初始化
 
@@ -35,21 +36,40 @@ cp .env.example .env
 `.env` 負責不同機器會變的值：
 
 ```env
+LLM_PROVIDER=openai-compatible
+OPENAI_COMPATIBLE_BASE_URL=http://localhost:18080/v1
+OPENAI_COMPATIBLE_MODEL=qwen3.6-35b-a3b
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=gemma4:e4b
 ```
 
 `config.toml` 負責應用行為參數，例如 LLM retry、謎面字數、JSON 儲存路徑與 CORS。
 
-## Ollama
+## LLM Runtime
 
-確認 Ollama 已啟動，並準備模型：
+預設方向是使用 llama.cpp 的 OpenAI-compatible API 搭配 `qwen3.6-35b-a3b`。若 runtime 在 Windows 端、後端在 WSL，`OPENAI_COMPATIBLE_BASE_URL` 通常需要使用 Windows gateway IP，例如：
+
+```env
+LLM_PROVIDER=openai-compatible
+OPENAI_COMPATIBLE_BASE_URL=http://192.168.192.1:18080/v1
+OPENAI_COMPATIBLE_MODEL=qwen3.6-35b-a3b
+```
+
+可用下列 endpoint 檢查 llama.cpp server 是否可連線：
+
+```bash
+curl http://192.168.192.1:18080/v1/models
+```
+
+Ollama 仍可作為替代 runtime。若使用 Ollama，確認 Ollama 已啟動並準備模型：
 
 ```bash
 ollama pull gemma4:e4b
 ```
 
-後端 health check 會檢查 Ollama 與模型是否可用。Ollama 不可用時 API 仍會啟動，但 `/api/health` 會回傳 `degraded`。
+後端 health check 會檢查目前選定的 LLM provider 與模型是否可用。LLM runtime 不可用時 API 仍會啟動，但 `/api/health` 會回傳 `degraded`。
+
+注意：目前正式後端仍待完成 OpenAI-compatible provider adapter 實作；相關設計與實作計畫見 `docs/design/architecture.md` 與 `docs/plans/development-plan.md`。
 
 ## 開發命令
 

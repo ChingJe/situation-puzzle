@@ -23,7 +23,7 @@
 
 ## LLM 測試
 
-測試不直接呼叫本機 Ollama，不依賴指定的本機模型。
+測試不直接呼叫本機 LLM runtime，不依賴指定的本機模型。Ollama 與 llama.cpp/OpenAI-compatible provider 都應以 fake LLM 或 stub 驗證後端行為。
 
 使用 fake LLM 或 stub 固定輸出：
 
@@ -37,6 +37,8 @@
 - 問題判定成功。
 - 問題判定無效，回傳 `INVALID_QUESTION`。
 - 解答判定成功與失敗。
+- provider factory 依 `LLM_PROVIDER` 選出正確 client。
+- health check 只檢查目前選定 provider，未選中的 provider 設定不影響結果。
 
 ## Storage 測試
 
