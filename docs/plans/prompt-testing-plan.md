@@ -34,6 +34,21 @@
 - 測試案例與結果摘要。
 - 如有需要，提出 schema/config 調整建議，但不在本計畫中直接要求實作。
 
+第二輪 prompt testing 應在已完成的題目生成 pipeline 架構下產出：
+
+- 一組穩定的 pipeline 節點 prompt：
+  - `interpret_topic`
+  - `generate_core_truth`
+  - `expand_truth`
+  - `extract_key_facts`
+  - `write_surface_story`
+  - `generate_forbidden_assumptions`
+  - `review_puzzle`
+- `write_surface_story` 專用 prompt 與 reviewer feedback 格式。
+- deterministic gate 與 reviewer issue 的分類表。
+- 多節點 retry 後仍失敗時的調整建議。
+- 針對短主題「便利商店」等高風險題目的 regression cases。
+
 ## 測試原則
 
 - 每輪只調整少量 prompt 變因，避免無法歸因。
@@ -272,6 +287,237 @@
 - 問答測試準確率至少 85%。
 - 解答判定測試準確率至少 85%。
 - 至少 3 局完整前端流程可順利完成。
+
+## 第二輪：Pipeline 架構 Prompt 測試
+
+### 背景
+
+第一輪 prompt testing 後，正式題目生成已從單一 `generate_puzzle` 改為多節點 pipeline：
+
+```text
+interpret_topic
+  -> generate_core_truth
+  -> expand_truth
+  -> extract_key_facts
+  -> write_surface_story
+  -> generate_forbidden_assumptions
+  -> review_puzzle
+  -> finalize_puzzle
+```
+
+目前新架構已能阻擋不合格題目，但實測 `便利商店` 仍暴露新的失敗型態：
+
+- `write_surface_story` 會把完整真相摘要寫進謎面。
+- 謎面過長，常超過 `strict_surface_story_max_chars`。
+- 謎面包含原因、行動者、結果、情緒反應等多個事件段落。
+- deterministic gate 會反覆要求重寫，但模型收到「太長／多異常」後仍未收斂到短謎面。
+- revision 用盡後後端回 `LLM_OUTPUT_INVALID`，題目建立失敗。
+
+因此第二輪測試不再只測「能否產生一題完整 JSON」，而是要確認每個 pipeline 節點都能穩定完成自己的單一責任，尤其是謎面撰寫與 reviewer feedback 是否能形成有效修正閉環。
+
+### 第二輪目標
+
+- 讓 `write_surface_story` 穩定輸出 2 句、50 到 120 字、只含單一可見異常的謎面。
+- 讓 `review_puzzle` 的 `revision_instruction` 足夠具體，可引導指定節點成功修正。
+- 降低同一節點重試後仍違反 deterministic gate 的比例。
+- 確認短主題不會被模型補成完整日常故事摘要。
+- 保留 pipeline 拆分帶來的一致性優勢，不回退到單次生成。
+
+### 第二輪非目標
+
+- 不調整前端。
+- 不改變玩家可見 API contract。
+- 不以提高 `max_revision_rounds` 作為主要解法。
+- 不放寬謎面品質標準來讓題目勉強通過。
+- 不要求模型產生文學化或驚悚化文字，優先追求可玩與可判定。
+
+### 第二輪測試資料
+
+第二輪應保留第一輪主題集，並新增下列 regression cases：
+
+- `便利商店`
+  - 重現 request `req_70f78d7cd13a45ecadf2e825582fee21` 的失敗型態。
+  - 期待謎面只留下「顧客根據可見資訊做出期待，結果與期待衝突」。
+- `當兵期間操課`
+  - 防止謎面把角色誤認寫成客觀事實。
+  - 期待謎面若涉及誤會，必須使用「他以為／他看到」。
+- `學校舊教室、關掉的燈、還在轉的風扇`
+  - 測試是否會引入特殊系統或超自然。
+- `電梯停在 13 樓，但大樓沒有 13 樓`
+  - 測試 topic explicit result 必須被保留且解釋。
+- `一名男子每天買同一款便當，直到店員報警`
+  - 測試主題明確結果「報警」不可被弱化。
+
+### 節點級測試階段
+
+#### 階段 A：重放正式失敗案例
+
+目的：
+
+建立新架構 baseline，確認問題是否可重現，並記錄每個節點的 raw input/output。
+
+步驟：
+
+1. 使用目前正式 pipeline prompt。
+2. 針對 `便利商店` 跑至少 3 次。
+3. 保留每次完整 raw message log。
+4. 標記失敗發生在哪個節點：
+   - deterministic gate
+   - reviewer
+   - structured output
+   - revision exhausted
+5. 特別紀錄 `write_surface_story` 的字數、句數、是否洩漏原因、是否多異常。
+
+驗收輸出：
+
+- baseline run 表。
+- 失敗樣本庫。
+- `write_surface_story` 主要違規分類。
+
+#### 階段 B：單獨測試 `write_surface_story`
+
+目的：
+
+在固定 `truth` 與 `key_facts` 的條件下，只測謎面 prompt，避免其他節點干擾。
+
+測試方法：
+
+1. 從 baseline 選出 5 組 `truth + key_facts`。
+2. 對每組套用不同 `write_surface_story` prompt candidate。
+3. 每個 candidate 至少跑 3 次，觀察穩定性。
+4. 使用 deterministic gate 自動標記：
+   - 長度是否 50 到 120 字。
+   - 是否剛好 2 句。
+   - 是否含「因為／其實／原來／真相」等解釋詞。
+   - 是否包含原因、行動者的關鍵行動、完整結論。
+   - 是否包含兩個以上主要事件。
+
+候選 prompt 方向：
+
+- `write_surface_story.v1`：強化「只寫結果，不寫原因」。
+- `write_surface_story.v2`：要求先在內部選出唯一可見異常，再只輸出該異常。
+- `write_surface_story.v3`：加入反例，例如「不要寫店員誤貼標籤；要寫顧客明明照標籤買，結果反應不如預期」。
+- `write_surface_story.v4`：限制輸出句型，例如：
+  - 第一句：角色看到或做了一件普通行為。
+  - 第二句：出現與期待相反的結果。
+
+通過門檻：
+
+- 5 組測資中至少 4 組可一次通過 deterministic gate。
+- 同一組測資連跑 3 次，至少 2 次合格。
+- 不得洩漏造成異常的真正原因。
+
+#### 階段 C：測試 reviewer feedback 是否可修正
+
+目的：
+
+確認 `review_puzzle` 不是只指出失敗，而是能產生可操作的修正指令。
+
+測試方法：
+
+1. 人工準備 5 個不合格 `surface_story`。
+2. 讓 `review_puzzle` 判定 `target_node` 與 `revision_instruction`。
+3. 將 `revision_instruction` 送回 `write_surface_story`。
+4. 檢查重寫後是否通過 deterministic gate。
+
+reviewer feedback 應避免：
+
+- 只說「謎面太長」。
+- 只說「請更簡潔」。
+- 未指出應刪除原因、流程或多餘事件。
+
+reviewer feedback 應包含：
+
+- 要保留的單一可見異常。
+- 要刪除的內容類型，例如原因、行動者、完整流程、心理判斷。
+- 字數與句數要求。
+- 是否必須改成「他以為／他看到」避免客觀事實錯誤。
+
+通過門檻：
+
+- reviewer 的 `target_node` 準確率至少 80%。
+- 收到 reviewer feedback 後，`write_surface_story` 修正成功率至少 70%。
+
+#### 階段 D：測試 deterministic gate 與 prompt 的協作
+
+目的：
+
+確認 gate 不是只阻擋，而能提供足夠細分的失敗理由讓 prompt revision 成功。
+
+測試方向：
+
+- 將 gate issue 從籠統描述拆成可被 prompt 使用的分類：
+  - `surface_story_too_long`
+  - `surface_story_too_many_sentences`
+  - `surface_story_explains_cause`
+  - `surface_story_multiple_events`
+  - `surface_story_denies_truth`
+  - `surface_story_subjective_inference_as_fact`
+- 測試每種 issue 對應的 revision instruction template。
+- 觀察是否需要讓 gate 在 state 中保存 `failed_checks`，而不只保存自然語言 issues。
+
+通過門檻：
+
+- 每種 gate issue 至少有 1 個測試樣本。
+- 對 `write_surface_story` 的 gate issue，二次修正後成功率至少 80%。
+
+#### 階段 E：完整 pipeline 測試
+
+目的：
+
+確認節點級 prompt 調整放回完整 pipeline 後仍可穩定運作。
+
+測試方法：
+
+1. 使用候選 prompt 組合跑完整 pipeline。
+2. 每個主題至少跑 1 次，短主題 `便利商店` 至少跑 5 次。
+3. 記錄：
+   - 總耗時。
+   - LLM call 次數。
+   - revision 次數。
+   - 最終是否成功建立題目。
+   - 題目品質分數。
+4. 對成功題目接續測 `answer_question` 與 `judge_solution`。
+
+通過門檻：
+
+- `便利商店` 5 次中至少 4 次成功建立題目。
+- 全測試集成功率至少 85%。
+- 平均 revision 次數不超過 1。
+- 成功題目中，謎面可推理性平均至少 1.7/2。
+- 不得再出現謎面把 truth 否定的內容寫成客觀事實。
+
+### 第二輪紀錄格式
+
+第二輪除原本紀錄欄位外，應新增：
+
+```text
+pipeline prompt set：
+node：
+node prompt version：
+deterministic gate result：
+failed_checks：
+review_target_node：
+review_issues：
+revision_instruction：
+revision_count：
+surface_story_chars：
+surface_story_sentence_count：
+surface_story_leaks_cause：
+surface_story_multiple_events：
+surface_story_objective_fact_conflict：
+final_pipeline_status：
+```
+
+### 第二輪完成定義
+
+第二輪 prompt testing 完成時，應具備：
+
+- 一組可提交實作的 pipeline prompt set。
+- `write_surface_story` 的穩定 prompt 與反例規則。
+- reviewer feedback 的格式與範本。
+- deterministic gate issue 分類與是否需要程式調整的建議。
+- 至少一份 regression report，證明 `便利商店` 不再因謎面過長或多異常而 revision exhausted。
 
 ## 測試紀錄格式
 
