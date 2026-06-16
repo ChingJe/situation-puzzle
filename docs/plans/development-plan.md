@@ -161,7 +161,7 @@
 
 目標：
 
-建立真實 Ollama client 與測試用 fake client 的一致介面，並封裝 structured output retry。
+建立真實 Ollama client 與測試用 fake client 的一致介面，並封裝 structured output retry。題目生成應支援多節點 pipeline，而不是只提供單一 `generate_puzzle` 呼叫。
 
 主要檔案：
 
@@ -172,8 +172,14 @@
 實作內容：
 
 - 使用 `ChatOllama.with_structured_output(...)`。
-- 分別建立三種任務：
-  - `generate_puzzle`
+- 分別建立遊戲所需任務：
+  - `interpret_topic`
+  - `generate_core_truth`
+  - `expand_truth`
+  - `extract_key_facts`
+  - `write_surface_story`
+  - `generate_forbidden_assumptions`
+  - `review_puzzle`
   - `answer_question`
   - `judge_solution`
 - 封裝 request retry 與 structured output retry。
@@ -192,7 +198,7 @@
 - structured output 第一次失敗、第二次成功時可通過。
 - retry 用盡時轉成 `LLM_OUTPUT_INVALID`。
 - 連線錯誤轉成 `LLM_UNAVAILABLE`。
-- 生成題目 schema 包含所有必要欄位。
+- 題目生成各 draft schema 包含必要欄位，並可組成正式 `Puzzle`。
 - `uv run pytest` 通過。
 
 ## 階段 5：LangGraph Workflow
@@ -212,7 +218,15 @@
 
 - 定義 graph state。
 - 實作節點：
-  - `generate_puzzle`
+  - `generate_puzzle_pipeline`
+  - `interpret_topic`
+  - `generate_core_truth`
+  - `expand_truth`
+  - `extract_key_facts`
+  - `write_surface_story`
+  - `generate_forbidden_assumptions`
+  - `review_puzzle`
+  - `finalize_puzzle`
   - `answer_question`
   - `judge_solution`
   - `finalize_game`
@@ -228,6 +242,8 @@
 驗收標準：
 
 - fake LLM 可驅動完整建立題目、提問、判定解答流程。
+- reviewer 不通過時可依 `target_node` 回到最小必要節點修正。
+- revision 次數超過設定時回 `LLM_OUTPUT_INVALID`。
 - 無效問題不產生正式 `QuestionRecord`。
 - 未解開只回傳 solved=false，不包含提示資訊。
 - `uv run pytest` 通過。
@@ -534,6 +550,82 @@
 - pytest 可驗證 structured event log 仍維持摘要化，raw message log 則保留完整內容。
 - `uv run pytest` 通過。
 
+## 階段 14：題目生成 Pipeline 重構
+
+目標：
+
+將目前一次完成的題目生成重構成多節點 LangGraph pipeline，加入 reviewer agent 與 deterministic gate，解決謎面、真相、關鍵事實不一致，以及短主題過度發散的問題。
+
+主要檔案：
+
+- `backend/app/models.py`
+- `backend/app/config.py`
+- `backend/app/llm/client.py`
+- `backend/app/llm/prompts.py`
+- `backend/app/graph/state.py`
+- `backend/app/graph/nodes.py`
+- `backend/app/graph/workflow.py`
+- `backend/tests/test_puzzle_generation_pipeline.py`
+- `backend/tests/test_prompts.py`
+- `docs/design/puzzle-generation-pipeline.md`
+
+實作內容：
+
+- 新增 draft schema：
+  - `TopicInterpretation`
+  - `CoreTruthDraft`
+  - `TruthDraft`
+  - `KeyFactsDraft`
+  - `SurfaceStoryDraft`
+  - `ForbiddenAssumptionsDraft`
+  - `PuzzleReviewResult`
+- 新增 `[puzzle_generation]` config：
+  - `reviewer_enabled`
+  - `deterministic_gate_enabled`
+  - `max_revision_rounds`
+  - `strict_surface_story_max_chars`
+  - `strict_truth_min_chars`
+  - `strict_truth_max_chars`
+- 將題目生成拆成節點：
+  - `interpret_topic`
+  - `generate_core_truth`
+  - `expand_truth`
+  - `extract_key_facts`
+  - `write_surface_story`
+  - `generate_forbidden_assumptions`
+  - `review_puzzle`
+  - `finalize_puzzle`
+- 實作 deterministic gate：
+  - 檢查字數、空欄位、條數。
+  - 檢查謎面是否含明顯解釋詞。
+  - 檢查謎面是否疑似包含多個主要異常。
+- 實作 reviewer routing：
+  - `generate_core_truth`
+  - `expand_truth`
+  - `extract_key_facts`
+  - `write_surface_story`
+  - `generate_forbidden_assumptions`
+- 每次 revision 增加 `revision_count`，超過上限後回 `LLM_OUTPUT_INVALID`。
+- Graph 完成後只輸出正式 `Puzzle`，中間 draft 不進 API response 或 storage。
+- raw message log 記錄中間 draft、reviewer issues、revision instruction。
+
+模組交界：
+
+- API 與 frontend 不變。
+- GameService 仍只接收最終 `Puzzle`。
+- `answer_question` 與 `judge_solution` 不接觸中間 draft。
+- LLM client 負責 structured output retry；Graph 負責內容 revision retry。
+
+驗收標準：
+
+- fake LLM 測試可覆蓋 reviewer 失敗後重寫謎面並成功。
+- fake LLM 測試可覆蓋 reviewer 要求重生核心真相。
+- deterministic gate 可阻擋過長謎面與空 key facts。
+- revision 超過上限時回 `LLM_OUTPUT_INVALID`。
+- 進行中遊戲 API 仍不洩漏 `truth`、`key_facts`、`forbidden_assumptions`。
+- 以真實 Ollama 人工測試 `便利商店` 與 `當兵期間操課`，不應再出現謎面客觀事實被 truth 否定的題目。
+- `uv run pytest` 通過。
+
 ## 建議實作順序摘要
 
 1. 資料模型與錯誤格式。
@@ -546,7 +638,9 @@
 8. 目前遊戲 UI。
 9. 歷史紀錄 UI。
 10. 真實 Ollama 整合與 prompt 調整。
-11. README 與文件整理。
+11. Logging 與可觀察性。
+12. 題目生成 pipeline 重構。
+13. README 與文件整理。
 
 ## 每階段完成定義
 

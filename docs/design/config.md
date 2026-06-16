@@ -51,6 +51,14 @@ key_facts_max = 8
 language = "zh-TW"
 content_style = "懸疑、適合一般玩家、避免露骨血腥描寫"
 
+[puzzle_generation]
+reviewer_enabled = true
+deterministic_gate_enabled = true
+max_revision_rounds = 2
+strict_surface_story_max_chars = 120
+strict_truth_min_chars = 160
+strict_truth_max_chars = 280
+
 [storage]
 data_dir = "data"
 games_dir = "data/games"
@@ -97,6 +105,19 @@ raw_message_include_parsed_outputs = true
 - `key_facts_max`：關鍵事實最多條數。
 - `language`：生成語言，第一版固定 `zh-TW`。
 - `content_style`：題材與內容風格限制。
+
+`[puzzle]` 保留為正式 `Puzzle` schema 的一般限制。題目生成 pipeline 可以使用 `[puzzle_generation]` 的更嚴格限制，以避免模型為了填滿篇幅補出不必要設定。
+
+## Puzzle Generation 設定
+
+- `reviewer_enabled`：是否啟用能看見完整內容的 reviewer agent。
+- `deterministic_gate_enabled`：是否啟用程式化品質檢查。
+- `max_revision_rounds`：reviewer 或 deterministic gate 不通過時，最多修正輪數。
+- `strict_surface_story_max_chars`：生成 pipeline 使用的謎面嚴格字數上限。
+- `strict_truth_min_chars`：生成 pipeline 使用的真相嚴格字數下限。
+- `strict_truth_max_chars`：生成 pipeline 使用的真相嚴格字數上限。
+
+詳細流程見 `docs/design/puzzle-generation-pipeline.md`。
 
 ## Storage 設定
 

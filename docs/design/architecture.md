@@ -97,9 +97,9 @@ situation-puzzle/
 - `models.py`：API request/response、遊戲紀錄、structured output schema。
 - `storage.py`：讀寫 `data/games/*.json`、歷史紀錄摘要。
 - `llm/client.py`：建立 ChatOllama、structured output、retry 封裝。
-- `llm/prompts.py`：題目生成、問題判定、解答判定 prompts。
+- `llm/prompts.py`：題目生成 pipeline、reviewer、問題判定、解答判定 prompts。
 - `graph/state.py`：LangGraph 狀態定義。
-- `graph/nodes.py`：`generate_puzzle`、`answer_question`、`judge_solution`、`finalize_game`。
+- `graph/nodes.py`：題目生成 pipeline 節點、`answer_question`、`judge_solution`、`finalize_game`。
 - `graph/workflow.py`：LangGraph workflow 建立與編譯。
 - `services/game_service.py`：遊戲生命週期、記憶體 session 管理、呼叫 graph、呼叫 storage。
 - `logs/`：本地 JSON lines log 輸出目錄，不進 git。
@@ -115,11 +115,14 @@ situation-puzzle/
 
 1. 玩家輸入主題。
 2. 前端呼叫 `POST /api/games`。
-3. 後端透過 LangGraph `generate_puzzle` 節點呼叫 Ollama。
-4. AI 回傳結構化題目，後端只把謎面回傳給前端。
-5. 玩家提問，前端呼叫 `POST /api/games/{game_id}/questions`。
-6. 後端驗證問題是否為可回答的是非題，並回傳「是」「否」「無關」。
-7. 玩家提交解答，前端呼叫 `POST /api/games/{game_id}/solution`。
-8. AI 判定是否解開。未解開時只回「尚未解開」。
-9. 解開或放棄後，後端寫入 `data/games/{game_id}.json`。
-10. 歷史紀錄頁讀取已結束遊戲 JSON 並以對話紀錄形式渲染。
+3. 後端透過 LangGraph 題目生成 pipeline 逐步解析主題、產生核心真相、擴寫真相、抽取關鍵事實、撰寫謎面。
+4. Reviewer agent 檢查謎面、真相、關鍵事實與禁止假設的一致性；不合格時回到指定節點修正。
+5. 題目通過 deterministic gate 與 reviewer 後，後端只把謎面回傳給前端。
+6. 玩家提問，前端呼叫 `POST /api/games/{game_id}/questions`。
+7. 後端驗證問題是否為可回答的是非題，並回傳「是」「否」「無關」。
+8. 玩家提交解答，前端呼叫 `POST /api/games/{game_id}/solution`。
+9. AI 判定是否解開。未解開時只回「尚未解開」。
+10. 解開或放棄後，後端寫入 `data/games/{game_id}.json`。
+11. 歷史紀錄頁讀取已結束遊戲 JSON 並以對話紀錄形式渲染。
+
+題目生成 pipeline 詳細設計見 `docs/design/puzzle-generation-pipeline.md`。

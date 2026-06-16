@@ -27,9 +27,13 @@
 
 使用 fake LLM 或 stub 固定輸出：
 
-- 題目生成成功。
-- 題目生成 structured output 第一次失敗、retry 後成功。
-- 題目生成 retry 後仍失敗，回傳 `LLM_OUTPUT_INVALID`。
+- 題目生成 pipeline 成功，最後產生正式 `Puzzle`。
+- 題目生成任一節點 structured output 第一次失敗、retry 後成功。
+- 題目生成 structured output retry 後仍失敗，回傳 `LLM_OUTPUT_INVALID`。
+- reviewer 第一次失敗並指定 `write_surface_story`，第二次修正後通過。
+- reviewer 第一次失敗並指定 `generate_core_truth`，後續 truth、key facts、surface story 皆重跑。
+- deterministic gate 阻擋過長謎面、空 key facts、過多 forbidden assumptions。
+- revision 次數超過設定時回傳 `LLM_OUTPUT_INVALID`。
 - 問題判定成功。
 - 問題判定無效，回傳 `INVALID_QUESTION`。
 - 解答判定成功與失敗。

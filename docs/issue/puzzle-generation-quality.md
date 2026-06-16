@@ -24,6 +24,13 @@ LLM 有成功回傳符合目前 schema 的 `PuzzleDraft`，包含：
 
 後端、LangGraph、structured output、Ollama 連線與 API response 流程都正常。問題主要集中在題目內容品質。
 
+2026-06-16 後續測試加入 raw message log 後，又觀察到兩類更具體的品質問題：
+
+- 主題「便利商店」生成的謎面同時包含「零食組合箱不見」與「快遞員喊電梯門票沒付錢」兩個異常，但真相將兩者拆成多個後勤流程，玩家自然追問兩者關係時被回答「無關」，造成遊戲主線不清。
+- 主題「當兵期間操課」生成的謎面寫成「人體骨骼結構被移除」，但真相又說角色只是誤以為看到骨質碎片；玩家問「是否被其他人移除」時回答「否」，等於真相否定了謎面描述。
+
+這些案例顯示：只靠單次 prompt 自檢不足以保證謎面、真相與 key facts 一致。
+
 ## 問題
 
 ### 1. 真相不是可解的答案
@@ -108,7 +115,12 @@ surface_story_length: 247
 - 對 `surface_story` 加上 schema 或後處理長度驗證。
 - 對 `truth`、`key_facts` 加入品質驗證或第二階段 critique/rewrite。
 - 將題目生成拆成多階段：構思真相、產生謎面、品質檢查、必要時重寫。
+- 將多階段生成正式化為 LangGraph pipeline：先產生核心真相，再擴寫 truth、抽取 key facts、最後撰寫 surface story。
+- 加入能看見所有內容的 reviewer agent，檢查謎面是否把錯誤推論寫成客觀事實，以及每個異常是否都能被 truth 直接解釋。
+- reviewer 不通過時依問題類型回到指定節點修正，而不是只整題重生。
 - 排除 dev server 對 `logs/`、`data/` 的 reload 監看，降低 log noise。
+
+重構設計見 `docs/design/puzzle-generation-pipeline.md`。
 
 ## 暫不處理
 

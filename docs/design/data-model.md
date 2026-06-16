@@ -38,6 +38,8 @@ hard
 
 ## 題目資料
 
+正式題目資料仍維持單一 `Puzzle` 結構。這是進行中遊戲、問答判定、解答判定與結束後 JSON 儲存使用的資料。
+
 ```json
 {
   "title": "雨夜發票",
@@ -53,6 +55,36 @@ hard
     "不應被誤判為真的假設"
   ],
   "difficulty": "medium"
+}
+```
+
+## 題目生成中間資料
+
+題目生成 pipeline 會使用多個中間 draft schema，但這些資料不進入 API response，也不保存到正式歷史 JSON。
+
+建議 schema：
+
+- `TopicInterpretation`：主題解析結果，包含場景、物件、角色、動作、明確結果與硬限制。
+- `CoreTruthDraft`：一句話核心真相與結構化因果欄位。
+- `TruthDraft`：擴寫後完整真相。
+- `KeyFactsDraft`：從真相抽出的必要因果事實。
+- `SurfaceStoryDraft`：玩家可見謎面與標題。
+- `ForbiddenAssumptionsDraft`：客觀上不成立的常見誤判。
+- `PuzzleReviewResult`：reviewer 審核結果與修正目標。
+
+只有通過 deterministic gate 與 reviewer 後，才會組成正式 `Puzzle`。
+
+`PuzzleReviewResult` 範例：
+
+```json
+{
+  "passed": false,
+  "severity": "major",
+  "target_node": "write_surface_story",
+  "issues": [
+    "謎面把錯誤推論寫成客觀事實"
+  ],
+  "revision_instruction": "保留 truth，只重寫謎面為單一客觀異常。"
 }
 ```
 
@@ -141,4 +173,3 @@ hard
 - `game_id` 建議使用 ULID 或 UUID。
 - 時間使用 ISO 8601 字串。
 - 本地開發可使用系統時區，但 response 中應包含 offset，例如 `+08:00`。
-

@@ -12,7 +12,7 @@
 
 ## LangGraph 節點
 
-### `generate_puzzle`
+### `generate_puzzle_pipeline`
 
 輸入：
 
@@ -34,6 +34,23 @@
 - 玩家只會看到 `surface_story`。
 - `truth`、`key_facts`、`forbidden_assumptions` 僅供後端判定使用。
 - 謎面不得直接暴露答案。
+- 題目生成不再由單一 LLM 呼叫一次完成，而是由多節點 pipeline 逐步產生與審核。
+- 詳細節點與 revision loop 見 `docs/design/puzzle-generation-pipeline.md`。
+
+內部子流程：
+
+```text
+interpret_topic
+  -> generate_core_truth
+  -> expand_truth
+  -> extract_key_facts
+  -> write_surface_story
+  -> generate_forbidden_assumptions
+  -> review_puzzle
+  -> finalize_puzzle
+```
+
+`review_puzzle` 不通過時，依 reviewer 指定的 `target_node` 回到最小必要節點修正。超過設定的 revision 次數後回傳 `LLM_OUTPUT_INVALID`。
 
 ### `answer_question`
 
@@ -97,7 +114,7 @@
 ### 建立遊戲
 
 ```text
-topic -> generate_puzzle -> memory session -> response(surface_story)
+topic -> generate_puzzle_pipeline -> memory session -> response(surface_story)
 ```
 
 ### 提問
@@ -135,6 +152,7 @@ abandon -> status=abandoned -> finalize_game -> response(truth)
 設計原則：
 
 - 每種 LLM 任務都有獨立 schema。
+- 題目生成 pipeline 的每個 draft 節點都有獨立 schema，最後才轉成正式 `Puzzle`。
 - LLM service 層負責 structured output retry。
 - Graph node 不直接處理 JSON 修補細節。
 - Pydantic 驗證失敗時依照 config retry。
@@ -144,4 +162,4 @@ abandon -> status=abandoned -> finalize_game -> response(truth)
 
 - Request retry：Ollama API timeout、連線錯誤、5xx 類錯誤。
 - Structured output retry：模型有回應，但無法解析或不符合 schema。
-
+- Puzzle revision retry：reviewer 或 deterministic gate 判定內容不合格，回到指定生成節點重寫。

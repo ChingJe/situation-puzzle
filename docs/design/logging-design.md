@@ -290,7 +290,7 @@ Graph workflow 應記錄：
 
 欄位：
 
-- `workflow`: `generate_puzzle | answer_question | judge_solution`
+- `workflow`: `generate_puzzle_pipeline | answer_question | judge_solution`
 - `node`
 - `game_id`，若已有
 - `duration_ms`
@@ -298,13 +298,22 @@ Graph workflow 應記錄：
 
 不記錄完整 state。state 可能包含 `Puzzle.truth`，因此只能記 key 名稱與長度摘要。
 
+題目生成 pipeline 應額外記錄 `revision_count`、`review_passed`、`review_target_node` 與 `issue_count`，方便追蹤 reviewer 為何要求重寫。
+
 ## LLM Event
 
 LLM client 應記錄每次 task。
 
 Task 類型：
 
-- `generate_puzzle`
+- `interpret_topic`
+- `generate_core_truth`
+- `expand_truth`
+- `extract_key_facts`
+- `write_surface_story`
+- `generate_forbidden_assumptions`
+- `review_puzzle`
+- `finalize_puzzle`
 - `answer_question`
 - `judge_solution`
 - `health_check`
@@ -484,7 +493,14 @@ full
 - `ask_question`
 - `submit_solution`
 - `abandon_game`
-- `generate_puzzle`
+- `generate_puzzle_pipeline`
+- `interpret_topic`
+- `generate_core_truth`
+- `expand_truth`
+- `extract_key_facts`
+- `write_surface_story`
+- `generate_forbidden_assumptions`
+- `review_puzzle`
 - `answer_question`
 - `judge_solution`
 - `history`
@@ -522,7 +538,7 @@ LLM prompt：
   "request_id": "req_abc",
   "llm_call_id": "llm_def",
   "message_kind": "llm.human_prompt",
-  "task": "generate_puzzle",
+  "task": "generate_core_truth",
   "mode": "full",
   "content_type": "text",
   "content": "玩家提供的主題如下...",
@@ -531,7 +547,7 @@ LLM prompt：
 }
 ```
 
-Parsed structured output：
+Final puzzle decision：
 
 ```json
 {
@@ -541,9 +557,8 @@ Parsed structured output：
   "event": "raw.message",
   "request_id": "req_abc",
   "game_id": "9b5f...",
-  "llm_call_id": "llm_def",
-  "message_kind": "llm.parsed_output",
-  "task": "generate_puzzle",
+  "message_kind": "agent.decision",
+  "task": "generate_puzzle_pipeline",
   "mode": "full",
   "content_type": "json",
   "content": {
