@@ -93,6 +93,8 @@ interpret_topic
 - 不提示缺少哪些 key facts。
 - 解開時遊戲狀態轉為 `solved`，並可揭示 `truth`。
 
+下一版若題目資料已升級為 `PuzzleV2`，`judge_solution` 應優先根據 `required_solution_facts` 判定，並允許使用已有問答紀錄補足玩家短解答缺少但已確認的核心事實。`supporting_facts` 不應作為硬性通關門檻。詳細規則見 `docs/design/puzzle-quality-contract.md`。
+
 ### `finalize_game`
 
 輸入：

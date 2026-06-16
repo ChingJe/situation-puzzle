@@ -40,6 +40,8 @@ hard
 
 正式題目資料仍維持單一 `Puzzle` 結構。這是進行中遊戲、問答判定、解答判定與結束後 JSON 儲存使用的資料。
 
+目前實作仍使用下列 v1 結構。下一版題目品質設計會將 `key_facts` 拆分為 `required_solution_facts` 與 `supporting_facts`，並新增 `core_mystery`、`core_truth` 與 `quality_notes` 等內部欄位。詳細 schema 與遷移策略見 `docs/design/puzzle-quality-contract.md`。
+
 ```json
 {
   "title": "雨夜發票",

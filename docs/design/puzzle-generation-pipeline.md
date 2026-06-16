@@ -23,6 +23,8 @@
 
 第三輪 contract prompt 測試補充顯示：pipeline 拆分能降低單節點負擔，但模型能力仍是題目品質的關鍵因素。`gemma4:e4b` 在短主題下仍容易產生不可玩的抽象原因或專業流程；`qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API 則能在相同 contract prompt 下產生更合理的核心因果。生成時間約 10 分鐘，目前視為可接受的品質 tradeoff。
 
+後續實測又顯示，題目可能通過一致性檢查但仍過於直覺，且 `judge_solution` 會因 `key_facts` 過細而對玩家短解答過嚴。下一版流程應導入 `PuzzleV2` 品質 contract，將解答必要事實與支撐事實拆分。詳細設計見 `docs/design/puzzle-quality-contract.md`。
+
 ## 設計目標
 
 - 讓每個 LLM 節點只負責一件事，降低單次生成負擔。
@@ -77,6 +79,8 @@ topic
 ```
 
 `finalize_puzzle` 才會輸出正式 `Puzzle`。前端與既有 API 仍只收到 `surface_story`。
+
+下一版建議將 `extract_key_facts` 調整為 `extract_solution_facts`，輸出 `required_solution_facts` 與 `supporting_facts`。為了相容既有程式，可在 finalize 階段合併產生 legacy `key_facts`。
 
 ## Graph State
 
