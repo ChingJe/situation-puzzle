@@ -49,6 +49,55 @@ class PuzzleDraft(ApiModel):
     difficulty: Difficulty = Difficulty.MEDIUM
 
 
+class TopicInterpretation(ApiModel):
+    title: str = Field(min_length=1, max_length=80)
+    scene: str = Field(min_length=1, max_length=120)
+    objects: list[str] = Field(default_factory=list, max_length=6)
+    actors: list[str] = Field(default_factory=list, max_length=4)
+    explicit_results: list[str] = Field(default_factory=list, max_length=4)
+    hard_constraints: list[str] = Field(default_factory=list, max_length=6)
+    open_space: str = Field(min_length=1, max_length=300)
+
+
+class CoreTruthDraft(ApiModel):
+    core_truth: str = Field(min_length=1, max_length=180)
+    cause: str = Field(min_length=1, max_length=120)
+    actor_action: str = Field(min_length=1, max_length=120)
+    abnormal_result: str = Field(min_length=1, max_length=120)
+    misdirection: str = Field(min_length=1, max_length=120)
+
+
+class TruthDraft(ApiModel):
+    truth: str = Field(min_length=1)
+
+
+class KeyFactsDraft(ApiModel):
+    key_facts: list[str] = Field(min_length=1)
+
+
+class SurfaceStoryDraft(ApiModel):
+    surface_story: str = Field(min_length=1)
+
+
+class ForbiddenAssumptionsDraft(ApiModel):
+    forbidden_assumptions: list[str] = Field(default_factory=list)
+
+
+class PuzzleReviewResult(ApiModel):
+    passed: bool
+    severity: Literal["minor", "major", "critical"] = "minor"
+    target_node: Literal[
+        "generate_core_truth",
+        "expand_truth",
+        "extract_key_facts",
+        "write_surface_story",
+        "generate_forbidden_assumptions",
+        "finalize_puzzle",
+    ] = "finalize_puzzle"
+    issues: list[str] = Field(default_factory=list)
+    revision_instruction: str = ""
+
+
 class QuestionJudgement(ApiModel):
     is_valid_question: bool
     answer: Answer | None = None

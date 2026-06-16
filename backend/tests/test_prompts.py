@@ -1,8 +1,11 @@
-from app.config import PuzzleConfig
+from app.config import PuzzleConfig, PuzzleGenerationConfig
 from app.llm.prompts import (
     answer_question_system_prompt,
+    generate_core_truth_system_prompt,
     judge_solution_system_prompt,
     puzzle_generation_system_prompt,
+    review_puzzle_system_prompt,
+    write_surface_story_system_prompt,
 )
 
 
@@ -14,6 +17,22 @@ def test_puzzle_generation_prompt_uses_tested_quality_rules() -> None:
     assert "一個場景、一個異常、一個真相" in prompt
     assert "key_facts：4 到 5 條" in prompt
     assert "surface_story 的每個異常" in prompt
+
+
+def test_pipeline_prompts_preserve_generation_quality_rules() -> None:
+    core_prompt = generate_core_truth_system_prompt(PuzzleConfig())
+    surface_prompt = write_surface_story_system_prompt(
+        PuzzleConfig(),
+        PuzzleGenerationConfig(),
+    )
+    review_prompt = review_puzzle_system_prompt(PuzzleConfig())
+
+    assert "一個主要異常、一條核心因果鏈" in core_prompt
+    assert "不可否定 topic_interpretation.hard_constraints" in core_prompt
+    assert "謎面中的客觀陳述必須被 truth 承認為客觀事實" in surface_prompt
+    assert "如果某件事只是角色誤會，不可寫成客觀事實" in surface_prompt
+    assert "謎面客觀事實不可被 truth 否定" in review_prompt
+    assert "指定最小必要修正節點" in review_prompt
 
 
 def test_answer_question_prompt_keeps_no_and_irrelevant_valid() -> None:

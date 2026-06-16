@@ -56,7 +56,7 @@ ollama pull gemma4:e4b
 後端：
 
 ```bash
-uv run fastapi dev backend/app/main.py
+uv run fastapi dev backend/app/main.py --host 0.0.0.0 --reload-dir backend
 ```
 
 前端：
@@ -73,7 +73,7 @@ make dev-backend
 make dev-frontend
 ```
 
-預設前端開發伺服器為 <http://localhost:5173>，後端為 <http://localhost:8000>。Vite 已設定 `/api` proxy 到後端。
+預設前端開發伺服器為 <http://localhost:5173>，後端為 <http://localhost:8000>。Vite 已設定 `/api` proxy 到後端。後端 reload watcher 只監看 `backend/`，避免 `logs/` 或 `data/` 寫入造成 dev server 反覆偵測變更。
 
 WSL 環境中，dev server 會監聽 `0.0.0.0`，若 Windows 瀏覽器無法使用 `localhost` 連入，可在 WSL 查詢 IP 後改用該 IP：
 

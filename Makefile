@@ -1,7 +1,7 @@
 .PHONY: dev-backend dev-frontend test-backend check-frontend
 
 dev-backend:
-	uv run fastapi dev backend/app/main.py --host 0.0.0.0
+	uv run fastapi dev backend/app/main.py --host 0.0.0.0 --reload-dir backend
 
 dev-frontend:
 	cd frontend && npm run dev

@@ -29,6 +29,15 @@ class PuzzleConfig(BaseSettings):
     content_style: str = "懸疑、適合一般玩家、避免露骨血腥描寫"
 
 
+class PuzzleGenerationConfig(BaseSettings):
+    reviewer_enabled: bool = True
+    deterministic_gate_enabled: bool = True
+    max_revision_rounds: int = 2
+    strict_surface_story_max_chars: int = 120
+    strict_truth_min_chars: int = 160
+    strict_truth_max_chars: int = 280
+
+
 class StorageConfig(BaseSettings):
     data_dir: str = "data"
     games_dir: str = "data/games"
@@ -67,6 +76,9 @@ class Settings(BaseSettings):
     log_level: str | None = None
     llm: LlmConfig = Field(default_factory=LlmConfig)
     puzzle: PuzzleConfig = Field(default_factory=PuzzleConfig)
+    puzzle_generation: PuzzleGenerationConfig = Field(
+        default_factory=PuzzleGenerationConfig
+    )
     storage: StorageConfig = Field(default_factory=StorageConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
