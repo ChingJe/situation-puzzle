@@ -22,25 +22,34 @@
 範例檔案應提供 `.env.example`。
 
 ```env
+LLM_PROVIDER=openai-compatible
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=gemma4:e4b
+OPENAI_COMPATIBLE_BASE_URL=http://localhost:18080/v1
+OPENAI_COMPATIBLE_MODEL=qwen3.6-35b-a3b
 ```
 
 欄位：
 
+- `LLM_PROVIDER`：LLM runtime 類型。建議值：`ollama` 或 `openai-compatible`。
 - `OLLAMA_BASE_URL`：Ollama API base URL。
-- `OLLAMA_MODEL`：預設模型名稱。
+- `OLLAMA_MODEL`：Ollama 模型名稱。
+- `OPENAI_COMPATIBLE_BASE_URL`：OpenAI-compatible API base URL，例如 llama.cpp server 的 `/v1` endpoint。
+- `OPENAI_COMPATIBLE_MODEL`：OpenAI-compatible API 使用的模型名稱。
+
+目前題目生成建議使用 `openai-compatible + qwen3.6-35b-a3b`。WSL 連線 Windows 端 llama.cpp 時，`OPENAI_COMPATIBLE_BASE_URL` 通常需使用 Windows gateway IP，例如 `http://192.168.192.1:18080/v1`，不可假設 `localhost` 一定可用。
 
 ## `config.toml`
 
 ```toml
 [llm]
-request_timeout_seconds = 120
+request_timeout_seconds = 600
 request_max_retries = 2
 structured_output_max_retries = 2
 generation_temperature = 0.8
 answer_temperature = 0.1
 judge_temperature = 0.1
+openai_compatible_max_tokens = 0
 
 [puzzle]
 surface_story_max_chars = 150
@@ -89,12 +98,19 @@ raw_message_include_parsed_outputs = true
 
 ## LLM 設定
 
-- `request_timeout_seconds`：每次 Ollama request timeout。
+- `request_timeout_seconds`：每次 LLM request timeout。若使用 `qwen3.6-35b-a3b` 生成題目，建議至少 `600` 秒。
 - `request_max_retries`：連線、timeout、5xx 等 request retry 次數。
 - `structured_output_max_retries`：模型輸出不符合 schema 時的 retry 次數。
 - `generation_temperature`：題目生成溫度，預設 `0.8`。
 - `answer_temperature`：是非題判定溫度，預設 `0.1`。
 - `judge_temperature`：解答判定溫度，預設 `0.1`。
+- `openai_compatible_max_tokens`：OpenAI-compatible request 的 `max_tokens`。`0` 表示不傳此欄位；目前 Qwen 測試中若限制過低，reasoning 會消耗 token 並截斷 JSON content，因此建議保持 `0`。
+
+題目生成速度與品質的目前決策：
+
+- `qwen3.6-35b-a3b` 完整 pipeline 約 10 分鐘，但可產生較合理、可玩的核心題目。
+- 此速度在目前產品定位中可接受，因為生成發生在開局前，且品質比即時性更重要。
+- UI/API 後續可考慮顯示生成中狀態，但不應為了縮短生成時間犧牲題目品質。
 
 ## Puzzle 設定
 

@@ -1,0 +1,130 @@
+{
+  "created_at": "2026-06-16T22:14:55+08:00",
+  "task": "pipeline_candidate",
+  "status": "error",
+  "error": "TimeoutError: timed out",
+  "provider": "openai-compatible",
+  "model": "qwen3.6-35b-a3b",
+  "base_url": "http://192.168.192.1:18080/v1",
+  "interpret_prompt_version": "interpret_topic.v3-short-topic-contract",
+  "core_prompt_version": "generate_core_truth.v7-concrete-contract",
+  "expand_prompt_version": "expand_truth.v3-concrete-contract",
+  "surface_prompt_version": "write_surface_story.v9-minimal-contract",
+  "review_prompt_version": "review_puzzle.v1-contract",
+  "topic": "便利商店",
+  "run_index": 0,
+  "duration_ms": 282665.9,
+  "revision_count": 0,
+  "final_target_node": null,
+  "final_failed_checks": null,
+  "final_gate": null,
+  "final_review": null,
+  "nodes": [
+    {
+      "task": "interpret_topic",
+      "revision_count": 0,
+      "duration_ms": 56259.6,
+      "system_prompt": "你只解析玩家主題，不創作故事。\n使用 zh-TW，繁體中文。\n\n嚴格規則：\n- objects 只能放玩家文字中明確出現的物品。\n- actors 只能放玩家文字中明確出現的人物。\n- explicit_results 只能放玩家文字中明確出現的結果。\n- hard_constraints 不得有空字串；只放玩家明確指定、後續不可否定的條件。\n- open_space 只能描述可補充範圍，不得加入角色、物品、事件、硬限制。\n\n短主題規則：\n- 若玩家只輸入單一場景或物品，例如「便利商店」，objects=[], actors=[], explicit_results=[]。\n- 這類短主題的 hard_constraints 只寫：故事主要場景必須是便利商店。\n- 這類短主題的 open_space 只寫：可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。",
+      "human_prompt": "玩家主題：\n便利商店",
+      "parsed": {
+        "title": "便利商店",
+        "scene": "便利商店",
+        "objects": [],
+        "actors": [],
+        "explicit_results": [],
+        "hard_constraints": [
+          "故事主要場景必須是便利商店。"
+        ],
+        "open_space": "可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。"
+      },
+      "raw": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"title\":\"便利商店\",\"scene\":\"便利商店\",\"objects\":[],\"actors\":[],\"explicit_results\":[],\"hard_constraints\":[\"故事主要場景必須是便利商店。\"],\"open_space\":\"可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\"}",
+              "reasoning_content": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - Player Input: \"便利商店\" (Convenience Store)\n   - This is a very short theme, just a single scene/location.\n\n2.  **Apply Rules:**\n   - **Language:** zh-TW (Traditional Chinese)\n   - **Strict Rules:**\n     - `objects`: Only explicitly mentioned items in player text. (None mentioned)\n     - `actors`: Only explicitly mentioned characters. (None mentioned)\n     - `explicit_results`: Only explicitly mentioned results. (None mentioned)\n     - `hard_constraints`: No empty strings. Only explicit, non-negotiable conditions. For short themes, follow the short theme rule.\n     - `open_space`: Only describe expandable scope, no characters, items, events, or hard constraints added.\n   - **Short Theme Rules:**\n     - If only a single scene/item like \"便利商店\", then `objects=[], actors=[], explicit_results=[]`.\n     - `hard_constraints` should only state: 故事主要場景必須是便利商店。 (Main scene must be a convenience store.)\n     - `open_space` should only state: 可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。 (Can add a daily character's abnormal behavior, but must not make the main plot about store operations or product status.)\n   - **Output Format:** Strict JSON object only. No markdown, no comments, no extra text. Must match the provided JSON Schema.\n   - **Schema Requirements:**\n     - `title` (string, 1-80 chars)\n     - `scene` (string, 1-120 chars)\n     - `open_space` (string, 1-300 chars)\n     - `objects` (array of strings, max 6)\n     - `actors` (array of strings, max 4)\n     - `explicit_results` (array of strings, max 4)\n     - `hard_constraints` (array of strings, max 6)\n     - All fields except `open_space` are not strictly required by `required` but implied by the prompt. I will include all to be safe, or follow the schema's `required: [\"title\", \"scene\", \"open_space\"]`. I'll include all keys.\n\n3.  **Draft Generation (Mental):**\n   - `title`: \"便利商店\" (or something similar, but keep it simple: \"便利商店\")\n   - `scene`: \"便利商店內部\" or \"便利商店\"\n   - `open_space`: \"可補充日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\"\n   - `objects`: []\n   - `actors`: []\n   - `explicit_results`: []\n   - `hard_constraints`: [\"故事主要場景必須是便利商店。\"]\n\n   Check constraints:\n   - `title`: \"便利商店\" (len 4, ok)\n   - `scene`: \"便利商店\" (len 4, ok)\n   - `open_space`: \"可補充日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\" (len ~28, ok)\n   - `objects`: [] (ok)\n   - `actors`: [] (ok)\n   - `explicit_results`: [] (ok)\n   - `hard_constraints`: [\"故事主要場景必須是便利商店。\"] (ok)\n   - Language: zh-TW\n   - Format: JSON only, no markdown.\n\n   Wait, the prompt says: \"這類短主題的 hard_constraints 只寫：故事主要場景必須是便利商店。\" and \"這類短主題的 open_space 只寫：可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\"\n   I will use exactly those strings.\n\n   Let's construct the JSON carefully.\n   ```json\n   {\n     \"title\": \"便利商店\",\n     \"scene\": \"便利商店\",\n     \"objects\": [],\n     \"actors\": [],\n     \"explicit_results\": [],\n     \"hard_constraints\": [\n       \"故事主要場景必須是便利商店。\"\n     ],\n     \"open_space\": \"可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\"\n   }\n   ```\n\n   Check schema requirements:\n   - `additionalProperties`: false\n   - `required`: [\"title\", \"scene\", \"open_space\"]\n   - All types match.\n   - I will ensure no markdown formatting is used, as requested: \"你必須只輸出 JSON object，不得輸出 Markdown、註解、解釋或其他文字。\"\n   - I will output raw JSON text.\n\n   One minor point: The prompt says \"不得輸出 Markdown\", so I will not use ````json ... ````. I will just output the raw JSON string.\n\n   Let's verify the exact wording for short theme rules:\n   - `hard_constraints`: [\"故事主要場景必須是便利商店。\"]\n   - `open_space`: \"可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\"\n   - `objects`, `actors`, `explicit_results`: []\n   - `title`: \"便利商店\"\n   - `scene`: \"便利商店\"\n\n   All matches. Ready. \n   Output matches exactly.✅\n   Proceed. \n   Self-Correction/Refinement during thought: \n   Should I add quotes or escape anything? No.\n   Check schema: `title` maxLength 80, `scene` maxLength 120, `open_space` maxLength 300. All good.\n   I will produce exactly the JSON.\n   One thing: The prompt says \"你必須只輸出 JSON object，不得輸出 Markdown、註解、解釋或其他文字。\" So I will strictly output just the JSON text.\n   Final check of the prompt: \"嚴格規則：... 短主題規則：...\"\n   All good.\n   Output generation. \n   `{ \"title\": \"便利商店\", \"scene\": \"便利商店\", \"objects\": [], \"actors\": [], \"explicit_results\": [], \"hard_constraints\": [\"故事主要場景必須是便利商店。\"], \"open_space\": \"可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\" }`\n   Matches perfectly.✅\n   Proceeds. \n   [Output Generation] -> *Proceeds*\n   *(Self-Correction/Verification during generation prep)*: \n   Wait, the prompt says `open_space` can be up to 300 chars. The exact phrase from prompt is \"可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\" I will use it exactly.\n   `hard_constraints` array contains exactly one string: \"故事主要場景必須是便利商店。\"\n   All arrays are empty except the specified ones.\n   JSON structure is valid.\n   Ready. \n   Output matches request.✅\n   *(Done.)*\n"
+            }
+          }
+        ],
+        "created": 1781619064,
+        "model": "qwen3.6-35b-a3b",
+        "system_fingerprint": "b9668-32120c10e",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 1606,
+          "prompt_tokens": 504,
+          "total_tokens": 2110,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "id": "chatcmpl-ccdf68P3aCm6vwgmPg5rorUoZQFElqoj",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 504,
+          "prompt_ms": 7190.132,
+          "prompt_per_token_ms": 14.26613492063492,
+          "prompt_per_second": 70.09607055892717,
+          "predicted_n": 1606,
+          "predicted_ms": 50144.614,
+          "predicted_per_token_ms": 31.223296388542966,
+          "predicted_per_second": 32.02736788441526
+        }
+      }
+    },
+    {
+      "task": "generate_core_truth",
+      "revision_count": 0,
+      "duration_ms": 106306.4,
+      "system_prompt": "你是海龜湯核心真相設計 agent。只設計核心，不寫謎面。\n使用 zh-TW，繁體中文。\n\n輸出必須是一個具體日常事件：\n- 公式：某人因為具體原因 X，做了具體行動 Y，導致可見異常 Z，玩家誤以為 W。\n- X 必須能用一句生活常識理解，且要說出人與人的關係或具體需求。\n- Z 必須是人物行為異常：拒賣、報警、買了不拿、只拿收據、要求重買、要求顧客留下、說出奇怪要求。\n\n禁止抽象與不可判定寫法：\n- 禁止使用：某個、某項、特殊、私密、保密、身份、狀態、驗證、流程、標準、內部、專業。\n- 禁止使用：商品擺放、分類、庫存、打包、清潔、垃圾、陳列、促銷、批次、標籤、印刷、檢測、過敏原、召回。\n- 禁止使用：秘密組織、接頭、任務、暗號、犯罪集團、駭客、系統、超自然。\n\n可用具體模式，擇一改寫到玩家主題：\n- 顧客買了商品卻故意不帶走，因為要讓同行者以為他真的進店買東西。\n- 店員報警，因為顧客每天買同一份餐點但收件人其實失蹤。\n- 顧客只拿收據不要商品，因為要向家人證明自己某時某地在店裡。\n- 店員拒賣普通商品，因為他認出顧客是在被迫購買不需要的東西。\n\n欄位長度：\n- core_truth 最多 80 個中文字。\n- cause、actor_action、abnormal_result、misdirection 各最多 45 個中文字。\n- 每欄都要具體，不要寫抽象詞。",
+      "human_prompt": "玩家主題：便利商店\n主題解析：\n{\n  \"title\": \"便利商店\",\n  \"scene\": \"便利商店\",\n  \"objects\": [],\n  \"actors\": [],\n  \"explicit_results\": [],\n  \"hard_constraints\": [\n    \"故事主要場景必須是便利商店。\"\n  ],\n  \"open_space\": \"可補一個日常人物行為異常，但不得把主線寫成店務流程或商品狀態。\"\n}",
+      "parsed": {
+        "core_truth": "母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。",
+        "cause": "母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。",
+        "actor_action": "母親每日在該便利商店點一杯熱咖啡並完成付款。",
+        "abnormal_result": "母親只拿走收據不取走商品，店員詢問仍堅持只留收據。",
+        "misdirection": "玩家以為收據藏有密碼、店員涉嫌違規，或母親精神失常。"
+      },
+      "raw": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"core_truth\":\"母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。\",\"cause\":\"母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。\",\"actor_action\":\"母親每日在該便利商店點一杯熱咖啡並完成付款。\",\"abnormal_result\":\"母親只拿走收據不取走商品，店員詢問仍堅持只留收據。\",\"misdirection\":\"玩家以為收據藏有密碼、店員涉嫌違規，或母親精神失常。\"}",
+              "reasoning_content": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n    - **Role:** 海龜湯核心真相設計 agent (Turtle Soup Core Truth Design Agent)\n    - **Task:** Design only the core truth, no puzzle surface.\n    - **Language:** zh-TW (Traditional Chinese)\n    - **Output Format:** JSON object matching a specific schema. No markdown, no extra text.\n    - **Constraints:**\n        - Formula: 某人因為具體原因 X，做了具體行動 Y，導致可見異常 Z，玩家誤以為 W。\n        - X (Cause): Must be understandable with common daily life knowledge, explicitly state human relationships or concrete needs.\n        - Z (Abnormal Result): Must be abnormal human behavior: refusing to sell, calling police, buying but not taking, only taking receipt, asking to buy again, asking customer to stay, giving strange requests.\n        - Forbidden Abstract/Undecidable Words: 某個, 某項, 特殊, 私密, 保密, 身份, 狀態, 驗證, 流程, 標準, 內部, 專業, 商品擺放, 分類, 庫存, 打包, 清潔, 垃圾, 陳列, 促銷, 批次, 標籤, 印刷, 檢測, 過敏原, 召回, 秘密組織, 接頭, 任務, 暗號, 犯罪集團, 駭客, 系統, 超自然.\n        - Length Limits: core_truth <= 180 chars (prompt says 80 in text but schema says 180, I'll stick to schema's 180 but keep it concise), cause/actor_action/abnormal_result/misdirection <= 120 chars (prompt says 45 in text but schema says 120, I'll follow schema but aim for conciseness as requested). I will strictly follow the schema limits but keep it tight.\n        - JSON Schema: `{\"additionalProperties\": false, \"properties\": {\"core_truth\": {...}, \"cause\": {...}, \"actor_action\": {...}, \"abnormal_result\": {...}, \"misdirection\": {...}}, \"required\": [...], \"title\": \"CoreTruthDraft\", \"type\": \"object\"}`\n        - Player Theme: 便利商店 (Convenience Store)\n\n2.  **Brainstorming Core Truth (Theme: Convenience Store):**\n    - *Idea 1:* 母親為讓上大學的兒子相信她真的去過台北，每天在台北捷運站旁的便利商店買一杯最便宜的熱咖啡，但只拿收據不取餐，因為收據上的時間戳記就是她「到過那裡」的證明。\n    - *Check against constraints:*\n        - X (Cause): 母親想讓上大學的兒子相信自己真的去過台北探望他，但其實沒錢或沒時間去。 -> 關係/需求明確。\n        - Y (Actor Action): 每天在該便利商店點一杯熱咖啡。\n        - Z (Abnormal Result): 只拿收據不取餐。 -> 符合可用模式。\n        - W (Misdirection): 玩家以為店員有問題、收據有貓膩、或母親精神異常。\n        - Forbidden words check: None used.\n        - Length check: All within limits.\n        - Theme: Convenience store.\n        - Formula match: 某人(母親)因為具體原因(想讓兒子相信自己去過台北)，做了具體行動(每天點熱咖啡)，導致可見異常(只拿收據不取餐)，玩家誤以為(收據造假或店員可疑)。\n    - *Refine to fit exact schema & constraints:*\n        - core_truth: 母親為了讓遠方的兒子相信自己真的去過台北，每天在該便利商店點一杯熱咖啡卻只取收據不拿商品，藉此留下到訪證明。\n        - cause: 母親想讓上大學的兒子相信自己真的去台北探望他，但其實沒有足夠的旅費與時間。\n        - actor_action: 母親每天走進該便利商店點一杯最便宜的熱咖啡並完成付款。\n        - abnormal_result: 母親只拿走收據而不取走商品，店員發現後反覆提醒卻仍堅持只留收據。\n        - misdirection: 玩家以為母親精神異常、收據藏有密碼，或店員在掩蓋某種違規交易。\n    - *Check constraints strictly:*\n        - X: 母親想讓上大學的兒子相信自己真的去台北探望他，但其實沒有足夠的旅費與時間。 (Clear, relationship/need, common sense)\n        - Y: 母親每天走進該便利商店點一杯最便宜的熱咖啡並完成付款。 (Concrete action)\n        - Z: 母親只拿走收據而不取走商品，店員發現後反覆提醒卻仍堅持只留收據。 (Abnormal behavior: 只拿收據)\n        - W: 玩家以為母親精神異常、收據藏有密碼，或店員在掩蓋某種違規交易。 (Misdirection)\n        - Core truth length: ~48 chars. (<180)\n        - Cause length: ~48 chars. (<120)\n        - Actor action length: ~46 chars. (<120)\n        - Abnormal result length: ~48 chars. (<120)\n        - Misdirection length: ~46 chars. (<120)\n        - Forbidden words: Checked. None present.\n        - Theme: Convenience store. Yes.\n        - Format: JSON only.\n\n    Let's double check the prompt's length constraints vs schema. Prompt says \"core_truth 最多 80 個中文字。cause、actor_action、abnormal_result、misdirection 各最多 45 個中文字。\" But schema says maxLength 180 and 120. I will strictly follow the prompt's stricter limits (80/45) to be safe, as AI prompts often have conflicting instructions where the text description overrides or clarifies. I'll trim them to be under 45/80.\n\n    Refined:\n    - core_truth: 母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。 (48 chars)\n    - cause: 母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。 (32 chars)\n    - actor_action: 母親每日在該便利商店點一杯熱咖啡並付款。 (20 chars)\n    - abnormal_result: 母親只拿走收據不取走商品，店員詢問仍堅持只留收據。 (25 chars)\n    - misdirection: 玩家以為收據藏有密碼、店員涉嫌販毒，或母親精神失常。 (26 chars)\n\n    Check formula match: 某人(母親)因為具體原因(想讓兒子相信自己去過台北)，做了具體行動(每日點熱咖啡並付款)，導致可見異常(只拿收據不取商品)，玩家誤以為(收據藏密碼或店員販毒)。\n    All constraints met. Language: zh-TW.\n    JSON structure matches schema.\n    I will generate exactly the JSON.\n    One minor check: \"只拿收據\" is explicitly in the allowed patterns. \"顧客只拿收據不要商品，因為要向家人證明自己某時某地在店裡。\" matches perfectly.\n    I'll adjust slightly to ensure it strictly follows the prompt's formula structure in the core_truth if needed, but the prompt says \"公式：某人因為具體原因 X，做了具體行動 Y，導致可見異常 Z，玩家誤以為 W。\" This is a guideline for the content, not necessarily the exact wording. I'll keep the refined version.\n\n    Final check of the JSON structure against schema:\n    ```json\n    {\n      \"core_truth\": \"母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。\",\n      \"cause\": \"母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。\",\n      \"actor_action\": \"母親每日在該便利商店點一杯熱咖啡並完成付款。\",\n      \"abnormal_result\": \"母親只拿走收據不取走商品，店員詢問仍堅持只留收據。\",\n      \"misdirection\": \"玩家以為收據藏有密碼、店員涉嫌違規，或母親精神失常。\"\n    }\n    ```\n    All fields are within limits. No forbidden words. Matches theme. Ready. \n    Output matches exactly.✅\n    Proceeds. \n    Self-Correction/Verification during thought:\n    - Prompt says: `core_truth 最多 80 個中文字。 cause、actor_action、abnormal_result、misdirection 各最多 45 個中文字。`\n    - My draft: core_truth(48), cause(32), actor_action(21), abnormal_result(25), misdirection(26). All good.\n    - Schema says maxLength 180/120, but I'll stick to the stricter text limits to be safe.\n    - Check forbidden words: 某個、某項、特殊、私密、保密、身份、狀態、驗證、流程、標準、內部、專業、商品擺放、分類、庫存、打包、清潔、垃圾、陳列、促銷、批次、標籤、印刷、檢測、過敏原、召回、秘密組織、接頭、任務、暗號、犯罪集團、駭客、系統、超自然。 -> None used.\n    - Check theme: 便利商店 -> Used in core_truth and context.\n    - Check formula: Matches.\n    - Output format: JSON only.\n    All good. Output matches request. \n    Generating. \n    `[Output Generation]` -> JSON string. \n    *(Self-Correction/Refinement during generation prep)*: I will make sure the JSON keys exactly match the schema. The schema uses `core_truth`, `cause`, `actor_action`, `abnormal_result`, `misdirection`. All correct.\n    I will output strictly the JSON object. No markdown. (Prompt says \"不得輸出 Markdown\", so I will output raw JSON text).\n    Let's produce it. \n    `{ \"core_truth\": \"母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。\", \"cause\": \"母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。\", \"actor_action\": \"母親每日在該便利商店點一杯熱咖啡並完成付款。\", \"abnormal_result\": \"母親只拿走收據不取走商品，店員詢問仍堅持只留收據。\", \"misdirection\": \"玩家以為收據藏有密碼、店員涉嫌違規，或母親精神失常。\" }`\n    Checks out. Proceeds. \n    *Output Generation* (matches the refined JSON)✅\n    *(Note: I will ensure no markdown formatting like ```json is used, as per \"不得輸出 Markdown\")*\n    Final string: `{\"core_truth\":\"母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。\",\"cause\":\"母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。\",\"actor_action\":\"母親每日在該便利商店點一杯熱咖啡並完成付款。\",\"abnormal_result\":\"母親只拿走收據不取走商品，店員詢問仍堅持只留收據。\",\"misdirection\":\"玩家以為收據藏有密碼、店員涉嫌違規，或母親精神失常。\"}`\n    All constraints met. Output matches. \n    Proceeds. \n    [Done] \n    *(Self-Correction/Verification during thought)*: Wait, the prompt says \"不得輸出 Markdown、註解、解釋或其他文字。\" I will output raw JSON.\n    The schema uses `maxLength` 180/120, but the text says 80/45. I'll keep it under 45/80 to be safe.\n    All good. \n    Output matches exactly. \n    `[Output Generation]` -> Raw JSON string. \n    *(Final Check of the Prompt)*: \"輸出必須是一個具體日常事件：公式：某人因為具體原因 X，做了具體行動 Y，導致可見異常 Z，玩家誤以為 W。\" -> My content follows this.\n    \"X 必須能用一句生活常識理解，且要說出人與人的關係或具體需求。\" -> Mother-son relationship, need for proof of visit.\n    \"Z 必須是人物行為異常：拒賣、報警、買了不拿、只拿收據、要求重買、要求顧客留下、說出奇怪要求。\" -> 只拿收據.\n    All perfect. \n    Proceeds. \n    `[Output]` (Raw JSON)\n    `{\"core_truth\":\"母親為讓遠方兒子相信自己曾去台北，每日在便利商店買咖啡卻只取收據不拿商品，以此留下到訪證明。\",\"cause\":\"母親想讓上大學的兒子相信自己去過台北探望，但其實沒有旅費與時間。\",\"actor_action\":\"母親每日在該便利商店點一杯熱咖啡並完成付款。\",\"abnormal_result\":\"母親只拿走收據不取走商品，店員詢問仍堅持只留收據。\",\"misdirection\":\"玩家以為收據藏有密碼、店員涉嫌違規，或母親精神失常。\"}`\n    Matches all criteria. Output matches. \n    *(Done.)*\n"
+            }
+          }
+        ],
+        "created": 1781619172,
+        "model": "qwen3.6-35b-a3b",
+        "system_fingerprint": "b9668-32120c10e",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 3125,
+          "prompt_tokens": 741,
+          "total_tokens": 3866,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "id": "chatcmpl-dykd7W7crHrWVaMojNuphw6E90kBFrNO",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 741,
+          "prompt_ms": 9032.466,
+          "prompt_per_token_ms": 12.189562753036437,
+          "prompt_per_second": 82.03739709620828,
+          "predicted_n": 3125,
+          "predicted_ms": 99154.339,
+          "predicted_per_token_ms": 31.72938848,
+          "predicted_per_second": 31.516522943085725
+        }
+      }
+    }
+  ]
+}

@@ -105,6 +105,23 @@ surface_story_length: 247
 - 解答提交時沒有明確標準答案可判斷。
 - 歷史紀錄即使保存成功，也保存的是不可玩的題目。
 
+## 目前結論
+
+後續已將題目生成重構為多節點 pipeline，並針對 `interpret_topic`、`generate_core_truth`、`expand_truth`、`write_surface_story`、`review_puzzle` 定義 prompt contract。測試結果顯示：
+
+- pipeline 與 prompt contract 能降低單次生成負擔，但無法完全彌補模型能力差距。
+- `gemma4:e4b` 在短主題 `便利商店` 下仍容易生成店務流程、專業制度、抽象驗證或不可判定因果。
+- `qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API 在相同 contract 方向下可生成合理題目：丈夫買水後只拿收據不拿商品，用來向妻子證明行蹤。
+- 完整 pipeline 生成時間約 10 分鐘，目前視為可接受 tradeoff；題目品質、可玩性與可判定性優先於低延遲。
+
+因此後續改善方向已從「只調整 prompt」改為：
+
+- 支援 OpenAI-compatible provider。
+- 將 `qwen3.6-35b-a3b` 作為主要題目生成模型基準。
+- 提高 LLM request timeout。
+- 保留 `gemma4:e4b` 作為輕量任務、fallback 或對照測試。
+- 持續補強 deterministic gate、reviewer output validation 與短主題 fallback。
+
 ## 初步改善方向
 
 後續實作時可考慮：

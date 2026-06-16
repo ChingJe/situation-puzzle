@@ -11,7 +11,7 @@
 - 本階段不直接改正式 prompt。
 - 本階段不直接改前端 UI。
 - 本階段不追求大量自動化壓測。
-- 本階段不把模型替換作為主要解法。
+- 本階段允許比較不同本地模型，並以題目品質決定主要生成模型。
 - 本階段不要求每個主題都產生高文學品質故事，優先確保可玩性與可判定性。
 
 ## 測試前置條件
@@ -20,6 +20,8 @@
 - WSL 端可透過 Windows gateway IP 呼叫 Ollama API。
 - `.env` 中 `OLLAMA_BASE_URL` 指向可用的 Ollama endpoint。
 - `.env` 中 `OLLAMA_MODEL=gemma4:e4b`，除非測試中明確比較其他模型。
+- 若測試 llama.cpp，Windows 端需啟動 OpenAI-compatible API，例如 `http://<windows-gateway-ip>:18080/v1`。
+- `qwen3.6-35b-a3b` 目前作為主要生成模型候選；完整 pipeline timeout 建議至少 `600` 秒。
 - 後端與前端可依 README 啟動，但 prompt 原型測試可先用直接呼叫 Ollama 或後端 LLM client 的方式進行。
 - `logs/messages.log` 保持開啟 raw message logging，以便保存 prompt、raw response 與 parsed output。
 
@@ -518,6 +520,50 @@ final_pipeline_status：
 - reviewer feedback 的格式與範本。
 - deterministic gate issue 分類與是否需要程式調整的建議。
 - 至少一份 regression report，證明 `便利商店` 不再因謎面過長或多異常而 revision exhausted。
+
+## 第三輪：模型能力與 Provider 測試結論
+
+第二輪 contract prompt testing 顯示，`gemma4:e4b` 在短主題題目生成上仍難以穩定遵守 contract。主要失敗型態包括：
+
+- 將 `便利商店` 補成商品批次、過敏原、檢測等專業流程。
+- 使用身份/狀態驗證、保密事務等抽象且不可判定原因。
+- 產生不自然或因果不清的核心真相。
+- reviewer revision instruction 偶爾為空，導致修正空轉。
+
+追加測試 `qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API 後，使用相同 contract 方向可產生合格題目：
+
+- 主題：`便利商店`
+- 結果：`ok`
+- target：`finalize_puzzle`
+- deterministic gate：通過
+- reviewer：通過
+- 生成時間：約 605 秒
+- 題目核心：丈夫買水後只拿收據不拿商品，用來向妻子證明行蹤。
+
+目前決策：
+
+- 接受約 10 分鐘開局生成時間作為合理 tradeoff。
+- 主要生成模型改以 `qwen3.6-35b-a3b` 為基準。
+- `gemma4:e4b` 保留為輕量任務、fallback 或對照測試，不再作為題目生成品質主要基準。
+- OpenAI-compatible provider 支援應納入後續實作任務。
+
+### 第三輪後續驗收方式
+
+由於 Qwen 單次完整 pipeline 較慢，驗收批次應重品質、少量但具代表性：
+
+1. `便利商店` 先跑 3 次，至少 2 次人工判讀通過。
+2. Regression topics 各跑 1 次：
+   - `當兵期間操課`
+   - `電梯停在 13 樓，但大樓沒有 13 樓`
+   - `一名男子每天買同一款便當，直到店員報警`
+   - `學校舊教室、關掉的燈、還在轉的風扇`
+3. 每筆成功題目至少人工檢查：
+   - core truth 是否是一條具體日常因果鏈。
+   - surface story 是否只含玩家可見異常。
+   - key facts 是否足以判定正解。
+   - reviewer 是否未漏判明顯不可玩題目。
+
+Qwen 測試中不應設定過低 `max_tokens`。若 llama.cpp 回傳包含 `reasoning_content`，解析時應只使用 `message.content` 作為 JSON 內容來源。
 
 ## 測試紀錄格式
 

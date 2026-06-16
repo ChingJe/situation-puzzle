@@ -21,6 +21,8 @@
 
 因此題目生成應改成多節點 pipeline：先建立核心真相，再逐步擴寫、抽取、撰寫謎面，最後由能看見所有內容的 reviewer agent 進行一致性與合理性審核。
 
+第三輪 contract prompt 測試補充顯示：pipeline 拆分能降低單節點負擔，但模型能力仍是題目品質的關鍵因素。`gemma4:e4b` 在短主題下仍容易產生不可玩的抽象原因或專業流程；`qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API 則能在相同 contract prompt 下產生更合理的核心因果。生成時間約 10 分鐘，目前視為可接受的品質 tradeoff。
+
 ## 設計目標
 
 - 讓每個 LLM 節點只負責一件事，降低單次生成負擔。
@@ -30,6 +32,7 @@
 - reviewer 能看見完整內容，檢查一致性、可玩性與主題忠實度。
 - reviewer 失敗時回到指定節點修正，而不是每次整題重生。
 - retry 次數由 config 控制，避免無限修正。
+- 支援較慢但較高品質的本地模型；題目生成優先追求可玩性與一致性，而非低延遲。
 
 ## 非目標
 
@@ -41,6 +44,17 @@
 - 對所有主題保證高品質，只先讓明顯不合理題目能被擋下並重試。
 
 中間 draft 與 reviewer 結果可以寫入 raw message log，供本機除錯。
+
+## 模型與耗時策略
+
+題目生成是每局開始前的一次性流程。若模型需要較長時間才能產生高品質題目，目前接受此成本：
+
+- 主要生成模型建議使用 `qwen3.6-35b-a3b`，透過 llama.cpp OpenAI-compatible API 呼叫。
+- `request_timeout_seconds` 建議提高到至少 `600` 秒。
+- OpenAI-compatible request 不應預設限制 `max_tokens`；Qwen reasoning 可能消耗大量 token，限制過低會截斷 JSON content。
+- `gemma4:e4b` 可保留作為 fallback 或輕量判定任務候選，但不應作為短主題題目生成品質的主要依據。
+
+後續若需要改善體感速度，應優先在前端顯示「題目生成中」狀態，或把較輕節點分配給較快模型，而不是降低題目生成品質標準。
 
 ## Pipeline 總覽
 

@@ -1,0 +1,23 @@
+{
+  "created_at": "2026-06-16T22:16:31+08:00",
+  "task": "pipeline_candidate",
+  "status": "error",
+  "error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+  "provider": "openai-compatible",
+  "model": "qwen3.6-35b-a3b",
+  "base_url": "http://192.168.192.1:18080/v1",
+  "interpret_prompt_version": "interpret_topic.v3-short-topic-contract",
+  "core_prompt_version": "generate_core_truth.v7-concrete-contract",
+  "expand_prompt_version": "expand_truth.v3-concrete-contract",
+  "surface_prompt_version": "write_surface_story.v9-minimal-contract",
+  "review_prompt_version": "review_puzzle.v1-contract",
+  "topic": "便利商店",
+  "run_index": 0,
+  "duration_ms": 37280.4,
+  "revision_count": 0,
+  "final_target_node": null,
+  "final_failed_checks": null,
+  "final_gate": null,
+  "final_review": null,
+  "nodes": []
+}

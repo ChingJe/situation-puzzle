@@ -10,9 +10,10 @@
 - uv：Python 環境與依賴管理
 - FastAPI：REST API
 - LangGraph：遊戲流程與狀態轉移
-- LangChain + ChatOllama：Ollama API 呼叫與 structured output
-- Ollama：本地 LLM runtime
-- 預設模型：`gemma4:e4b`
+- LangChain + LLM provider adapter：LLM API 呼叫與 structured output
+- Ollama / llama.cpp OpenAI-compatible API：本地 LLM runtime
+- 生成模型目標：`qwen3.6-35b-a3b` via llama.cpp OpenAI-compatible API
+- 輕量判定模型可選：`gemma4:e4b` via Ollama
 - React + Vite + TypeScript：前端互動介面
 - JSON 檔案：結束後遊戲紀錄儲存
 - Git：版本控制
@@ -96,7 +97,7 @@ situation-puzzle/
 - `middleware.py`：request id middleware、HTTP request start/end logging。
 - `models.py`：API request/response、遊戲紀錄、structured output schema。
 - `storage.py`：讀寫 `data/games/*.json`、歷史紀錄摘要。
-- `llm/client.py`：建立 ChatOllama、structured output、retry 封裝。
+- `llm/client.py`：建立 LLM provider adapter、structured output、retry 封裝；需支援 Ollama 與 OpenAI-compatible endpoint。
 - `llm/prompts.py`：題目生成 pipeline、reviewer、問題判定、解答判定 prompts。
 - `graph/state.py`：LangGraph 狀態定義。
 - `graph/nodes.py`：題目生成 pipeline 節點、`answer_question`、`judge_solution`、`finalize_game`。
@@ -126,3 +127,14 @@ situation-puzzle/
 11. 歷史紀錄頁讀取已結束遊戲 JSON 並以對話紀錄形式渲染。
 
 題目生成 pipeline 詳細設計見 `docs/design/puzzle-generation-pipeline.md`。
+
+## LLM Runtime 決策
+
+第二輪 contract prompt 測試顯示，`gemma4:e4b` 在短主題題目生成上容易產生店務流程、專業制度、抽象保密動機或不可判定核心。相同 prompt contract 改用 llama.cpp 部署的 `qwen3.6-35b-a3b` 後，`便利商店` 測試可產生明確、可問答、可判定的日常人物行為異常題目。
+
+目前接受的 tradeoff：
+
+- 題目生成屬於開局前一次性成本，約 10 分鐘生成時間可接受。
+- 優先確保題目品質、可玩性與勝負判定穩定性，而不是追求快速生成。
+- 後續正式架構應支援 OpenAI-compatible provider 與較長 request timeout。
+- `gemma4:e4b` 可保留作為較輕量任務或 fallback 測試對象，但不再視為題目生成品質的主要基準。
