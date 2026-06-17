@@ -573,6 +573,246 @@ Qwen 測試中不應設定過低 `max_tokens`。若 llama.cpp 回傳包含 `reas
 - `request_timeout_seconds` 需要足以涵蓋 Qwen 長生成，建議至少 600 秒。
 - 正式後端 health、logging、raw message log 都應使用通用 LLM provider 欄位，而不是寫死 Ollama。
 
+## 第四輪：Puzzle V2 後的謎面客觀性與解答事實測試
+
+### 背景
+
+導入 `PuzzleV2`、`required_solution_facts`、`supporting_facts` 與低可玩性 gate 後，實測 `便利商店` 題目已不再退化成「正常補貨」這類直覺日常流程。`game_id=69a91ea9-1bc4-482c-ba71-3e3eb70e1cea` 顯示新結構可以支撐完整遊戲：
+
+- 題目成功建立，`schema_version=2`。
+- 玩家透過問答逐步確認自動門、物體感應與商品被人帶走。
+- 玩家提交「有人用店內物品卡住自動門，躲開監視器把限定商品偷走」後判定 `solved=true`。
+
+但本局仍暴露新的 prompt 問題：
+
+- `surface_story` 使用「全程無人靠近」這種絕對客觀描述，但 truth 中實際有人走向後方貨架拿走商品。
+- 「不翼而飛」與「全程無人」等詞若未限定為角色視角，容易讓謎面和真相衝突。
+- 題目可玩但偏向偷竊手法推理，海龜湯反轉感仍偏弱。
+- `required_solution_facts` 仍可能包含玩家自然解答不一定需要完整說出的誤導校正。
+
+第四輪測試目標是微調 prompt 與 reviewer contract，不再重構資料結構。
+
+### 第四輪目標
+
+- 讓 `write_surface_story` 避免未被 truth 支持的絕對客觀措辭。
+- 讓 reviewer 明確檢查謎面的每個強斷言是否由 truth 支持。
+- 讓 `extract_solution_facts` 更穩定區分 required 與 supporting facts。
+- 保持 v2 schema 與目前 pipeline，不新增新節點。
+- 保持 `judge_solution` 可接受玩家自然短解答，不要求復述完整 truth。
+
+### 第四輪非目標
+
+- 不更換主要生成模型。
+- 不修改前端。
+- 不再重設 puzzle schema。
+- 不用提高 `max_revision_rounds` 解決品質問題。
+- 不把所有犯罪或偷竊題材全面禁止，但要避免題目只剩手法推理。
+
+### Regression Case
+
+#### Case A：便利商店自動門
+
+來源：
+
+- `game_id=69a91ea9-1bc4-482c-ba71-3e3eb70e1cea`
+- topic：`便利商店`
+
+本局可接受之處：
+
+- 核心真相有具體行動與關鍵物件。
+- 問答流程能逐步縮小範圍。
+- 解答判定合理。
+
+本局需改善之處：
+
+- 謎面：
+
+```text
+便利商店的自動門反覆開合，限定商品卻不翼而飛，全程無人靠近。監視器拍下空門晃動的畫面後，店內眾人皆以為是幽靈作祟。
+```
+
+問題：
+
+- 「全程無人靠近」被寫成客觀事實，但 truth 需要有人接近貨架並拿走商品。
+- 「限定商品卻不翼而飛」若不是角色主觀感受，也容易暗示客觀不可解事件。
+
+可接受改寫方向：
+
+```text
+便利商店的自動門反覆開合，限定商品也在店員沒注意時消失了。監視器畫面看起來只有空門晃動，店內眾人因此以為是幽靈作祟。
+```
+
+或：
+
+```text
+便利商店的自動門反覆開合，店員回頭時發現限定商品已經不見。監視器畫面像是沒有人靠近貨架，店內眾人因此以為是幽靈作祟。
+```
+
+驗收重點：
+
+- 可使用「看起來」「以為」「店員回頭時發現」表示視角限制。
+- 不可把「無人靠近」「無人碰過」「憑空消失」寫成 truth 未支持的客觀事實。
+
+### Prompt Candidate 測試方向
+
+#### `write_surface_story.v10-objective-guard`
+
+新增規則：
+
+- 若 truth 中有人、物或行動造成異常，謎面不得寫「全程無人」「完全沒有人」「沒有人靠近」「沒有人碰過」作為客觀事實。
+- 若角色不知道原因，必須使用視角限定：
+  - 「看起來」
+  - 「他以為」
+  - 「監視畫面像是」
+  - 「店員回頭時發現」
+  - 「眾人誤以為」
+- 「不翼而飛」「憑空消失」只能作為角色感受，不得作為客觀敘述。
+- 謎面應保留單一可見異常，不應同時描述完整手法。
+
+測試方法：
+
+1. 固定 `truth`、`required_solution_facts`、`supporting_facts`，只重跑 `write_surface_story`。
+2. 至少使用 5 組 truth：
+   - 便利商店自動門與限定商品。
+   - 水族館少右眼的魚。
+   - 電梯沒有 13 樓。
+   - 學校舊教室風扇。
+   - 每天買同一款便當直到店員報警。
+3. 每組跑 3 次。
+4. 人工標記：
+   - 是否有絕對客觀詞。
+   - 是否用視角限定修正。
+   - 是否洩漏手法。
+   - 是否仍有明確可問的異常。
+
+通過門檻：
+
+- 15 次中至少 12 次無 unsupported absolute claim。
+- 15 次中至少 12 次謎面仍可推理。
+- 不得出現 truth 明確否定的謎面客觀事實。
+
+#### `review_puzzle.v2-objective-claim-check`
+
+新增審核規則：
+
+- Reviewer 必須逐一檢查 surface story 中的強斷言。
+- 下列詞若出現，必須確認 truth 是否客觀支持：
+  - 全程無人
+  - 完全沒有人
+  - 沒有人靠近
+  - 沒有人碰過
+  - 憑空消失
+  - 不翼而飛
+  - 自己
+  - 突然
+- 若 truth 只是角色沒看見、監視器角度沒拍到、眾人誤以為，surface story 必須改成主觀視角描述。
+- 若 surface story 的強斷言會讓玩家排除真相中的必要行動，必須 `passed=false` 且 `target_node=write_surface_story`。
+
+測試方法：
+
+1. 人工準備 8 個 surface story：
+   - 4 個含 unsupported absolute claim。
+   - 2 個使用正確視角限定。
+   - 2 個一般合格謎面。
+2. 讓 reviewer 判斷是否通過。
+3. 對不通過樣本檢查 `target_node` 是否為 `write_surface_story`。
+4. 對 revision instruction 檢查是否明確指出：
+   - 哪個詞是 unsupported absolute claim。
+   - 應改成何種視角限定。
+   - 要保留哪個單一異常。
+
+通過門檻：
+
+- unsupported absolute claim 偵測率至少 90%。
+- 合格謎面誤殺率不超過 20%。
+- revision instruction 可被 `write_surface_story` 用於成功修正的比例至少 70%。
+
+#### `extract_solution_facts.v2-minimum-required`
+
+新增規則：
+
+- `required_solution_facts` 只放玩家正解必須直接或等價命中的事實。
+- 誤導校正若只是「眾人誤以為」或「看起來像」，通常放入 `supporting_facts`。
+- required facts 建議 2 到 3 條；只有題目真的需要時才允許第 4 條。
+- 每條 required fact 必須符合：「若玩家沒說這條，答案就真的不完整」。
+
+測試方法：
+
+1. 使用已完成或人工整理的 5 題 truth。
+2. 對每題產出 solution facts。
+3. 人工設計 3 種玩家解答：
+   - 精簡自然正解。
+   - 缺少真正原因的部分解。
+   - 誤導方向錯誤解。
+4. 檢查精簡自然正解是否能命中 required facts。
+
+通過門檻：
+
+- 每題 required facts 平均 2 到 3 條。
+- 精簡自然正解通過率至少 90%。
+- 部分解與錯解不應被 required facts 誤判為完整。
+
+### Deterministic Gate 補充測試
+
+第四輪以 prompt 為主，但應同時評估是否需要新增輕量 deterministic gate。
+
+候選 gate：
+
+```text
+surface_story_unsupported_absolute_terms
+```
+
+候選詞：
+
+- 全程無人
+- 完全沒有人
+- 沒有人靠近
+- 沒有人碰過
+- 憑空消失
+- 不翼而飛
+
+Gate 不應直接判定所有出現皆失敗，而是先作為 `warning` 類型記錄；若 prompt 測試顯示 reviewer 常漏判，再升級為 blocking gate。
+
+測試紀錄欄位新增：
+
+```text
+surface_story_absolute_terms：
+surface_story_has_viewpoint_qualifier：
+surface_story_absolute_claim_supported_by_truth：
+reviewer_detected_unsupported_absolute_claim：
+required_fact_count：
+natural_solution_should_pass：
+natural_solution_matched_required_fact_ids：
+```
+
+### 第四輪完整驗收
+
+測試批次：
+
+1. `便利商店`：至少 3 次完整 pipeline。
+2. `一條少了右眼的魚`：至少 1 次完整 pipeline。
+3. `電梯停在 13 樓，但大樓沒有 13 樓`：至少 1 次完整 pipeline。
+4. `學校舊教室、關掉的燈、還在轉的風扇`：至少 1 次完整 pipeline。
+5. `一名男子每天買同一款便當，直到店員報警`：至少 1 次完整 pipeline。
+
+通過門檻：
+
+- 完整 pipeline 成功率至少 80%。
+- 成功題目中 unsupported absolute claim 為 0。
+- 成功題目中 required facts 平均不超過 3.5 條。
+- 每題至少一個精簡自然正解可被 `judge_solution` 判為 solved。
+- `便利商店` 題目不得回到正常補貨、打掃、盤點、陳列等低可玩流程。
+
+### 第四輪完成定義
+
+完成時應產出：
+
+- `write_surface_story.v10-objective-guard` 是否採用的結論。
+- `review_puzzle.v2-objective-claim-check` 是否採用的結論。
+- `extract_solution_facts.v2-minimum-required` 是否採用的結論。
+- 是否需要新增 deterministic gate 的決策。
+- 至少一份 regression report，包含 `game_id=69a91ea9-1bc4-482c-ba71-3e3eb70e1cea` 對照修正前後差異。
+
 ## 測試紀錄格式
 
 每輪測試建議記錄：
