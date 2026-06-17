@@ -47,7 +47,7 @@ from app.models import (
 )
 
 
-OUTPUT_DIR = ROOT_DIR / "docs" / "prompt-tests" / "pipeline-v2" / "round4"
+OUTPUT_DIR = ROOT_DIR / "docs" / "prompt-tests" / "round4-objective-claim"
 RAW_DIR = OUTPUT_DIR / "raw"
 
 ABSOLUTE_TERMS = (

@@ -216,7 +216,7 @@ Reviewer 應新增「低可玩性 gate」。只要命中重大問題，即使一
 
 ## Pipeline 調整
 
-建議將現有 `extract_key_facts` 拆成兩個責任更清楚的節點。
+目前流程已將原本的 `extract_key_facts` 責任收斂到 `extract_solution_facts`，用兩組欄位分開表達通關門檻與支撐事實。
 
 ```text
 topic
@@ -318,7 +318,7 @@ topic
 - 玩家答案與 forbidden assumptions 衝突，判 `solved=false`。
 - 未解開時仍只回傳固定訊息「尚未解開」，不提示缺少事實。
 
-建議 structured output：
+建議 structured output 保留內部 debug 欄位：
 
 ```json
 {
@@ -342,7 +342,7 @@ API 仍只回傳：
 
 ## 向後相容策略
 
-第一階段可以同時保留舊欄位：
+目前為了向後相容，可以同時保留舊欄位：
 
 ```json
 {
@@ -404,7 +404,7 @@ Reviewer 應回：
 ## 實作順序建議
 
 1. 新增 `PuzzleV2`、`SolutionFact`、`PuzzleQualityNotes` schema。
-2. 將 `extract_key_facts` 改為 `extract_solution_facts`，同時輸出 legacy `key_facts`。
+2. 確認 `extract_solution_facts` 同時輸出 `required_solution_facts`、`supporting_facts` 與 legacy `key_facts`。
 3. 更新 reviewer prompt，加入低可玩性 gate 與 required/supporting facts 檢查。
 4. 更新 `judge_solution` prompt 與 schema，使其回傳 matched fact ids。
 5. 補 fake LLM 測試：低可玩題被打回、required facts 過嚴被打回、短解答結合歷史可通關。
@@ -412,4 +412,4 @@ Reviewer 應回：
 
 ## 決策
 
-下一輪實作優先處理 data structure，再處理 pipeline routing，最後調整 prompt 文字。Prompt 必須服務 schema 與流程，不應再單獨承擔題目品質控制。
+目前決策是讓 prompt 服務 schema 與流程，不再單獨承擔題目品質控制。後續調整應先確認資料結構與 routing 能表達問題，再微調 prompt 文字。

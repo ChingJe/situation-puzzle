@@ -34,7 +34,7 @@ from app.models import (
 )
 
 
-OUTPUT_DIR = ROOT_DIR / "docs" / "prompt-tests"
+OUTPUT_DIR = ROOT_DIR / "docs" / "prompt-tests" / "round1-single-prompt"
 RAW_DIR = OUTPUT_DIR / "raw"
 
 

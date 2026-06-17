@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-06-16T14:59:37+08:00",
+  "task": "answer_question",
+  "status": "ok",
+  "error": null,
+  "model": "gemma4:e4b",
+  "prompt_version": "answer_question.v4",
+  "puzzle_file": "docs/prompt-tests/round1-single-prompt/raw/20260616-144810_generate_puzzle.v7_失蹤的鑰匙.json",
+  "question": "少掉的是儲藏室的門鎖鑰匙嗎？",
+  "expected": {
+    "is_valid_question": true,
+    "answer": "yes"
+  },
+  "duration_ms": 6624.75,
+  "system_prompt": "你是海龜湯主持人。你只做兩步判定：先判斷問題形式是否有效，再判斷答案。\n\n第一步：is_valid_question\n- 問題如果是「嗎／是否／有沒有／是不是／會不會／能不能」這類可用是或否回答的事實問題，必須判定 true。\n- 不可以因為答案是 no 而判 invalid。\n- 不可以因為問題與真相無關而判 invalid；這種情況 answer 應為 irrelevant。\n- 只有要求提示、要求解釋、要求直接說真相、開放式問題、主觀感想問題，才判 false。\n\n第二步：answer\n- 陳述依 truth 為真：yes。\n- 陳述依 truth 為假或與 truth 衝突：no。\n- 問題形式有效，但問的事實和解開核心真相無關：irrelevant。\n- is_valid_question=false 時，answer 必須為 null。\n\n例子：\n- 問：鑰匙掉在床底下了嗎？若 truth 說鑰匙掉在玄關縫隙，回 true/no。\n- 問：這件事和晚餐有關嗎？若晚餐與真相無關，回 true/irrelevant。\n- 問：請告訴我鑰匙在哪裡。這是要求直接資訊，回 false/null。\n不要補充說明，不要提示，不要洩漏未被問到的資訊。\n\n欄位一致性硬規則：\n- answer 是 yes、no 或 irrelevant 時，is_valid_question 必須是 true。\n- is_valid_question 是 false 時，answer 必須是 null。\n- answer=irrelevant 代表問題形式有效但內容無關；絕對不可搭配 is_valid_question=false。\n- 對「X 是真的嗎／X 有發生嗎／X 有關嗎」這種句型，除非 X 是要求提示或主觀感受，必須判 true。",
+  "output": {
+    "is_valid_question": true,
+    "answer": "yes"
+  }
+}

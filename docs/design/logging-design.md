@@ -309,9 +309,9 @@ Task 類型：
 - `interpret_topic`
 - `generate_core_truth`
 - `expand_truth`
-- `extract_key_facts`
+- `extract_solution_facts`
 - `write_surface_story`
-- `generate_forbidden_assumptions`
+- `generate_assumptions`
 - `review_puzzle`
 - `finalize_puzzle`
 - `answer_question`
@@ -497,9 +497,9 @@ full
 - `interpret_topic`
 - `generate_core_truth`
 - `expand_truth`
-- `extract_key_facts`
+- `extract_solution_facts`
 - `write_surface_story`
-- `generate_forbidden_assumptions`
+- `generate_assumptions`
 - `review_puzzle`
 - `answer_question`
 - `judge_solution`

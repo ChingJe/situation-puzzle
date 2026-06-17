@@ -47,7 +47,7 @@ from app.models import (
 )
 
 
-OUTPUT_DIR = ROOT_DIR / "docs" / "prompt-tests" / "pipeline-v2"
+OUTPUT_DIR = ROOT_DIR / "docs" / "prompt-tests" / "round2-pipeline-v2"
 RAW_DIR = OUTPUT_DIR / "raw"
 LAB_PROVIDER = "ollama"
 LAB_OPENAI_BASE_URL = "http://localhost:18080/v1"

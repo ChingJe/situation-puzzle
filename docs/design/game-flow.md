@@ -32,7 +32,7 @@
 
 - 內容使用繁體中文。
 - 玩家只會看到 `surface_story`。
-- `truth`、`key_facts`、`forbidden_assumptions` 僅供後端判定使用。
+- `truth`、`required_solution_facts`、`supporting_facts`、`forbidden_assumptions` 僅供後端判定使用。
 - 謎面不得直接暴露答案。
 - 題目生成不再由單一 LLM 呼叫一次完成，而是由多節點 pipeline 逐步產生與審核。
 - 詳細節點與 revision loop 見 `docs/design/puzzle-generation-pipeline.md`。
@@ -43,9 +43,9 @@
 interpret_topic
   -> generate_core_truth
   -> expand_truth
-  -> extract_key_facts
+  -> extract_solution_facts
   -> write_surface_story
-  -> generate_forbidden_assumptions
+  -> generate_assumptions
   -> review_puzzle
   -> finalize_puzzle
 ```

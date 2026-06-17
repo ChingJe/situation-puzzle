@@ -69,9 +69,9 @@ hard
 - `TopicInterpretation`：主題解析結果，包含場景、物件、角色、動作、明確結果與硬限制。
 - `CoreTruthDraft`：一句話核心真相與結構化因果欄位。
 - `TruthDraft`：擴寫後完整真相。
-- `KeyFactsDraft`：從真相抽出的必要因果事實。
+- `SolutionFactsDraft`：從真相抽出的通關必要事實與支撐事實。
 - `SurfaceStoryDraft`：玩家可見謎面與標題。
-- `ForbiddenAssumptionsDraft`：客觀上不成立的常見誤判。
+- `AssumptionsDraft`：題目誤導方向與客觀上不成立的常見誤判。
 - `PuzzleReviewResult`：reviewer 審核結果與修正目標。
 
 只有通過 deterministic gate 與 reviewer 後，才會組成正式 `Puzzle`。

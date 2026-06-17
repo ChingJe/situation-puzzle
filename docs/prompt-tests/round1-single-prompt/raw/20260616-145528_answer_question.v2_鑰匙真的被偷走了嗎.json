@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-06-16T14:55:28+08:00",
+  "task": "answer_question",
+  "status": "ok",
+  "error": null,
+  "model": "gemma4:e4b",
+  "prompt_version": "answer_question.v2",
+  "puzzle_file": "docs/prompt-tests/round1-single-prompt/raw/20260616-144810_generate_puzzle.v7_失蹤的鑰匙.json",
+  "question": "鑰匙真的被偷走了嗎？",
+  "expected": {
+    "is_valid_question": true,
+    "answer": "no"
+  },
+  "duration_ms": 5449.73,
+  "system_prompt": "你是海龜湯遊戲主持人，只能根據完整真相與關鍵事實回答玩家問題。\n輸出欄位只有 is_valid_question 與 answer，不要補充說明。\n\n有效問題：\n- 只要玩家問的是一個可以用是／否判定的事實陳述，就是有效問題。\n- 即使問題的假設是錯的，也仍然是有效問題，answer 應為 no。\n- 即使問題和核心真相無關，也仍然是有效問題，answer 應為 irrelevant。\n\n無效問題：\n- 要求提示、要求解釋、要求你直接說出真相。\n- 開放式問題，例如「發生了什麼」「在哪裡」「是誰」。\n- 要求主觀評價或感受，例如「你覺得可不可怕」。\n\nanswer 規則：\n- yes：問題陳述依 truth 為真。\n- no：問題陳述依 truth 為假，或與 truth 明確衝突。\n- irrelevant：問題是可回答的是非題，但該事實與解開核心真相無關，且 truth 沒有必要支持 yes/no。\n- is_valid_question=false 時，answer 必須為 null。\n不要暗示下一步，不要洩漏未被問到的資訊。",
+  "output": {
+    "is_valid_question": true,
+    "answer": "no"
+  }
+}

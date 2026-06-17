@@ -43,9 +43,9 @@
   - `interpret_topic`
   - `generate_core_truth`
   - `expand_truth`
-  - `extract_key_facts`
+  - `extract_solution_facts`
   - `write_surface_story`
-  - `generate_forbidden_assumptions`
+  - `generate_assumptions`
   - `review_puzzle`
 - `write_surface_story` 專用 prompt 與 reviewer feedback 格式。
 - deterministic gate 與 reviewer issue 的分類表。
@@ -301,9 +301,9 @@
 interpret_topic
   -> generate_core_truth
   -> expand_truth
-  -> extract_key_facts
+  -> extract_solution_facts
   -> write_surface_story
-  -> generate_forbidden_assumptions
+  -> generate_assumptions
   -> review_puzzle
   -> finalize_puzzle
 ```

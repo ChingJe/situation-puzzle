@@ -182,9 +182,9 @@
   - `interpret_topic`
   - `generate_core_truth`
   - `expand_truth`
-  - `extract_key_facts`
+  - `extract_solution_facts`
   - `write_surface_story`
-  - `generate_forbidden_assumptions`
+  - `generate_assumptions`
   - `review_puzzle`
   - `answer_question`
   - `judge_solution`
@@ -231,9 +231,9 @@
   - `interpret_topic`
   - `generate_core_truth`
   - `expand_truth`
-  - `extract_key_facts`
+  - `extract_solution_facts`
   - `write_surface_story`
-  - `generate_forbidden_assumptions`
+  - `generate_assumptions`
   - `review_puzzle`
   - `finalize_puzzle`
   - `answer_question`
@@ -589,9 +589,9 @@
   - `TopicInterpretation`
   - `CoreTruthDraft`
   - `TruthDraft`
-  - `KeyFactsDraft`
+  - `SolutionFactsDraft`
   - `SurfaceStoryDraft`
-  - `ForbiddenAssumptionsDraft`
+  - `AssumptionsDraft`
   - `PuzzleReviewResult`
 - 新增 `[puzzle_generation]` config：
   - `reviewer_enabled`
@@ -604,9 +604,9 @@
   - `interpret_topic`
   - `generate_core_truth`
   - `expand_truth`
-  - `extract_key_facts`
+  - `extract_solution_facts`
   - `write_surface_story`
-  - `generate_forbidden_assumptions`
+  - `generate_assumptions`
   - `review_puzzle`
   - `finalize_puzzle`
 - 實作 deterministic gate：
@@ -616,9 +616,9 @@
 - 實作 reviewer routing：
   - `generate_core_truth`
   - `expand_truth`
-  - `extract_key_facts`
+  - `extract_solution_facts`
   - `write_surface_story`
-  - `generate_forbidden_assumptions`
+  - `generate_assumptions`
 - 每次 revision 增加 `revision_count`，超過上限後回 `LLM_OUTPUT_INVALID`。
 - Graph 完成後只輸出正式 `Puzzle`，中間 draft 不進 API response 或 storage。
 - raw message log 記錄中間 draft、reviewer issues、revision instruction。
